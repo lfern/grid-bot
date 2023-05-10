@@ -1,0 +1,25 @@
+{
+  "name": "grid-bot",
+  "version": "1.0.0",
+  "description": "Grid-bot description",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lfern/grid-bot.git"
+  },
+  "keywords": [
+    "crypto",
+    "grid",
+    "bot",
+    "ccxt"
+  ],
+  "author": "Luis Fernando Pardo <lfern70@gmail.com>",
+  "license": "LGPL-3.0",
+  "bugs": {
+    "url": "https://github.com/lfern/grid-bot/issues"
+  },
+  "homepage": "https://github.com/lfern/grid-bot#readme"
+}
