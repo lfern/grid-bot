@@ -42,16 +42,18 @@ function cancelablePromise(asyncfn) {
  */
 function watchTrades(exchange, symbol, cb) {
     return cancelablePromise(async (resolve, reject, signal) => {
+        let cancelled = false;
         signal.catch(err => {
             // Exit when canceled externally
-            reject(err);
+            cancelled = true;
+            //reject(err);
         });
 
         let delayer = new ErrorDelay();
-        while(true) {
+        while(!cancelled) {
             delayer.restoring();
             try {
-                while (true) {
+                while (!cancelled) {
                     // Wait for public trades
                     let trades = await exchange.watchTrades(symbol);
                     cb(trades);
@@ -63,11 +65,14 @@ function watchTrades(exchange, symbol, cb) {
                 if (ex instanceof ccxt.NetworkError) {
                     await delayer.errorAndWait();
                 } else {
-                // Exit if there is any error in the websocket connection
+                    // Exit if there is any error in the websocket connection
+                    console.log("Exit listening trades")
                     throw ex;
                 }
             }
         }
+        console.log("Exit listening trades")
+        resolve();
     });
 }
 
@@ -83,17 +88,19 @@ function watchTrades(exchange, symbol, cb) {
  */
 function watchMyTrades(exchange, symbol, cb) {
     return cancelablePromise(async (resolve, reject, signal) => {
+        let cancelled = false;
         signal.catch(err => {
             // Exit when canceled externally
-            reject(err);
+            cancelled = true;
+            // reject(err);
         });
 
         let delayer = new ErrorDelay();
-        while(true) {
+        while(!cancelled) {
             delayer.restoring();
 
             try {
-                while (true) {
+                while (!cancelled) {
                     // Wait for new trades
                     let trades = await exchange.watchMyTrades(symbol);
                     // for each trade
@@ -106,11 +113,14 @@ function watchMyTrades(exchange, symbol, cb) {
                 if (ex instanceof ccxt.NetworkError) {
                     await delayer.errorAndWait();
                 } else {
-                // Exit if there is any error in the websocket connection
+                    console.log("Exit listening trades")
+                    // Exit if there is any error in the websocket connection
                     throw ex;
                 }
             }
         }
+        console.log("Exit listening trades")
+        resolve();
     });
 }
 
@@ -129,11 +139,11 @@ function checkMyTradesInterval(exchange) {
         const interval = setInterval(() => {
             // TODO: Invoke API method to get last closed orders
             console.log("I was called");
-            res("ok");
+            response("ok");
         }, ms);
 
         signal.catch(err => {
-            rej(err);
+            reject(err);
             clearInterval(interval);
         });
 
