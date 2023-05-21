@@ -4,8 +4,10 @@ const {BaseExchangeOrder} = require('./BaseExchangeOrder');
  * @typedef {Object} ExchangeOptions
  * @property {boolean} [verbose]
  * @property {string} [exchangeType]
- * @property {string} [apikey]
+ * @property {boolean} [paper]
+ * @property {string} [apiKey]
  * @property {string} [secret]
+ * @property {int} [rateLimit]
  */
 
 /**
