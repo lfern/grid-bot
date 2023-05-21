@@ -54,8 +54,19 @@ services:
       - "${POSTGRES_PERSIST_FOLDER_OR_VOLUME:-./data}:/var/lib/postgresql/data"
       - ./db/init.sql:/docker-entrypoint-initdb.d/create_tables.sql
 
+  redis:
+    image: redis:6.2-alpine
+    restart: always
+    ports:
+      - '6379:6379'
+    command: redis-server --save 20 1 --loglevel warning --requirepass eYVX7EwVmmxKPCDmwMtyKVge8oLd2t81
+    volumes: 
+      - redis:/data
+
 volumes:
   postgres:
+    driver: local
+  redis:
     driver: local
 
 networks:

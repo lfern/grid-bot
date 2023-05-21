@@ -119,6 +119,13 @@ class BaseExchangeOrder {
     get type() {
         throw new Error("NOT IMPLEMENTED");
     }
+
+    /**
+     * @returns {object}
+     */
+    toJson() {
+        throw new Error("NOT IMPLEMENTED");
+    }
 }
 
 module.exports = { BaseExchangeOrder }

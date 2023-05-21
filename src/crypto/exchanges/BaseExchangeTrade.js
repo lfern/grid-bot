@@ -86,5 +86,14 @@ class BaseExchangeTrade {
     get timestamp() {
         throw new Error("NOT IMPLEMENTED");
     }
+
+    /**
+     * @returns {object}
+     */
+     toJson() {
+        throw new Error("NOT IMPLEMENTED");
+    }
     
 }
+
+module.exports = { BaseExchangeTrade}

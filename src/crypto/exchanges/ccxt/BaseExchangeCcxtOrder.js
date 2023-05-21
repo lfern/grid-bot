@@ -91,6 +91,12 @@ class BaseExchangeCcxtOrder extends BaseExchangeOrder {
     get type() {
         return this.ccxtOrder.type;
     }
+    
+    /** @inheritdoc */
+     toJson() {
+        return this.ccxtOrder;
+    }
 }
+
 
 module.exports = { BaseExchangeCcxtOrder }

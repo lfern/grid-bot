@@ -8,7 +8,7 @@ class Bitfinex extends BaseExchangeCcxt {
      * @param {ExchangeOptions} params 
      */
     constructor(params = {}) {
-        super('bitfinex', params);
+        super('bitfinex2', params);
     }
 
 }

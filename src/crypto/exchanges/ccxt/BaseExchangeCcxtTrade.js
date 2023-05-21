@@ -65,4 +65,12 @@ class BaseExchangeCcxtTrade {
         this.ccxtTrade.timestamp;
     }
 
+    /** @inheritdoc */
+    toJson() {
+        return this.ccxtTrade;
+    }
+    
+
 }
+
+module.exports = {BaseExchangeCcxtTrade}

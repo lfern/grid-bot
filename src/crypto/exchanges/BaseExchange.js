@@ -71,15 +71,17 @@ class BaseExchange {
 
     /**
      * Watch my trades
-     * @param {string} symbol 
+     * @param {string|undefined} symbol 
+     * @returns {[BaseExchangeTrade]}
      */
-    async watchMyTrades(symbol){
+    async watchMyTrades(symbol = null){
         throw new Error("NOT IMPLEMENTED");
     }
 
     /**
      * 
      * @param {string} symbol 
+     * @returns {[BaseExchangeTrade]}
      */
     async watchTrades(symbol){
         throw new Error("NOT IMPLEMENTED");

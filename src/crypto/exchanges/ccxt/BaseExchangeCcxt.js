@@ -4,6 +4,7 @@ const exc = require('../exceptions/ExchangeError');
 const ccxt = require('ccxt');
 const _ = require("lodash");
 const {BaseExchangeCcxtOrder} = require('./BaseExchangeCcxtOrder');
+const {BaseExchangeCcxtTrade} = require('./BaseExchangeCcxtTrade');
 
 /** @typedef {import('../BaseExchange').ExchangeOptions} ExchangeOptions */
 
@@ -28,7 +29,7 @@ class BaseExchangeCcxt extends BaseExchange {
             throw new exc.ExchangeNotFoundError("Ccxt exchange is not valid")
         } 
         /** @type {ccxt.Exchange} */
-        this.ccxtExchange = new ccxt[exchangeName]({
+        this.ccxtExchange = new ccxt.pro[exchangeName]({
             verbose: this.params.verbose,
         });
     }
@@ -79,13 +80,26 @@ class BaseExchangeCcxt extends BaseExchange {
     }
 
     /** @inheritdoc */
-    async watchMyTrades(symbol) {
-        throw new Error("NOT IMPLEMENTED");
+    async watchMyTrades(symbol = null) {
+        let trades = await this.ccxtExchange.watchMyTrades(symbol);
+
+        let newTrades = [];
+        trades.forEach(t => {
+            newTrades.push(new BaseExchangeCcxtTrade(t));
+        })
+
+        return newTrades;
     }
     
     /** @inheritdoc */
     async watchTrades(symbol) {
-        throw new Error("NOT IMPLEMENTED");
+        let trades = await this.ccxtExchange.watchTrades(symbol);
+        let newTrades = [];
+        trades.forEach(t => {
+            newTrades.push(new BaseExchangeCcxtTrade(t));
+        })
+
+        return newTrades;
     }
 
 }
