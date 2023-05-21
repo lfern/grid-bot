@@ -21,6 +21,7 @@ class BaseExchangeCcxt extends BaseExchange {
         super(_.extend({
             verbose: false,
             exchangeType: "spot",
+            paper: false,
         }, params));
         /** @type {string} */
         this.exchangeName = exchangeName;
@@ -28,10 +29,17 @@ class BaseExchangeCcxt extends BaseExchange {
         if (!ccxt.hasOwnProperty(exchangeName)) {
             throw new exc.ExchangeNotFoundError("Ccxt exchange is not valid")
         } 
-        /** @type {ccxt.Exchange} */
-        this.ccxtExchange = new ccxt.pro[exchangeName]({
+
+        let ccxtOptions = _.pickBy({
             verbose: this.params.verbose,
-        });
+            exchangeType: this.params.exchangeType,
+            apiKey: this.params.apiKey,
+            secret: this.params.secret,
+            rateLimit: this.params.rateLimit,
+        }, _.identity);;
+
+        /** @type {ccxt.Exchange} */
+        this.ccxtExchange = new ccxt.pro[exchangeName](ccxtOptions);
     }
 
     /** @inheritdoc */
@@ -80,7 +88,7 @@ class BaseExchangeCcxt extends BaseExchange {
     }
 
     /** @inheritdoc */
-    async watchMyTrades(symbol = null) {
+    async watchMyTrades(symbol = undefined) {
         let trades = await this.ccxtExchange.watchMyTrades(symbol);
 
         let newTrades = [];
