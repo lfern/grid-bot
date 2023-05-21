@@ -5,6 +5,7 @@ require('dotenv').config();
 const {sleep} = require('./src/crypto/exchanges/utils/timeutils');
 const {watchMyTrades} = require('./src/crypto/exchanges/utils/procutils');
 const {exchangeInstance} = require('./src/crypto/exchanges/exchanges');
+const {DbHelper} = require('./src/db/DbHelper')
 
 const myTradesQueue = new Queue("myTrades", {
     // Redis configuration
@@ -15,64 +16,22 @@ const myTradesQueue = new Queue("myTrades", {
     },
 });
 
-const pool = {
-    user: process.env.POSTGRES_USERNAME,
-    host: process.env.POSTGRES_HOSTNAME,
-    database: process.env.POSTGRES_DB,
-    password: process.env.POSTGRES_PASSWORD,
-    port: process.env.POSTGRES_PORT,
-    max: 1,
-    connectionTimeoutMillis: 2000
-};console.log(pool);
+const dbHelper = new DbHelper(
+    process.env.POSTGRES_USERNAME,
+    process.env.POSTGRES_HOSTNAME,
+    process.env.POSTGRES_DB,
+    process.env.POSTGRES_PASSWORD,
+    process.env.POSTGRES_PORT,
+);
 
-
-/** @type {pg.Client} */
-let client = null;
-var reconnectLoop = 0;
-var sleepInterval = 0;
 let currentConnections = {};
-const postgresDBConnect = () => {
-    const startedAt = new Date().getTime();
-    let cli = new pg.Client(pool)
-    cli.on('error', (err) => {
-        console.log('startedAt:-', startedAt);
-        console.log('crashedAt:-', new Date().getTime());
-        client = null;
-        //Reconnect
-        reconnectLoop = reconnectLoop + 1;
-        sleepInterval = reconnectLoop * 1000;
-        console.log('Trying Reconnect1' + ' Sleep Timeout ' + sleepInterval);
-        setTimeout(postgresDBConnect, sleepInterval);
-    });
-
-
-    cli.connect(err => {
-        if (err) {
-            console.error('Connection issue:', err.stack)
-            reconnectLoop = reconnectLoop + 1
-            sleepInterval = 1000 * reconnectLoop
-            console.log('Trying Reconnect2' + '. Sleep Timeout ' + sleepInterval)
-            cli.end()
-            setTimeout(postgresDBConnect, sleepInterval)
-
-        } else {
-            client = cli;
-            console.log('Connected to Postgres Server')
-        }
-    });
-
-};
-
-console.log('Starting UP Postgres Connection');
-postgresDBConnect();
-
 (async () => {
     while (true) {
-        console.log("Checking...");
-        if (client != null) {
-            console.log("Checking...");
+        console.log("Checking postgresql client is connected ...");
+        if (dbHelper.client != null) {
+            console.log("Check new accounts...");
             try {
-                let accounts = await client.query(`
+                let accounts = await dbHelper.client.query(`
                     SELECT accounts.*, exchanges.exchange_name, account_types.account_type
                     FROM accounts, account_types, exchanges
                     WHERE accounts.account_type_id = account_types.id and
@@ -86,7 +45,7 @@ postgresDBConnect();
                     let id = account.id.toString();
                     lastIds.push(id);
                     if (!(id in currentConnections)) {
-                        console.log(account);
+                        console.log('New account: ' + account.name);
                         const exchange = exchangeInstance(account.exchange_name, {
                             exchangeType: account.account_type,
                             rateLimit: 1000,  // testing 1 second though it is not recommended (I think we should not send too many requests/second)
@@ -123,7 +82,9 @@ postgresDBConnect();
                         };
 
                         res.promise.then(res => {
+                            console.log(`ws closed for account ${id} `)
                         }).catch(err => {
+                            console.log(`ws closed for account ${id} with error`)
                             console.error(err);
                             if (id in currentConnections){
                                 currentConnections[id].cancel();
@@ -139,6 +100,7 @@ postgresDBConnect();
                 for (let i = 0; i < currentIds.length; i++) {
                     let id = currentIds[i];
                     if (!lastIds.includes(id)) {
+                        console.log("Removing unused client: " + id);
                         currentConnections[id].cancel();
                         await currentConnections[id].exchange.close();
                         delete currentConnections[id];
