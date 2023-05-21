@@ -42,8 +42,8 @@ services:
     image: postgres:14.1-alpine
     restart: always
     environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_USER=${POSTGRES_USERNAME:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
     ports:
       - '5432:5432'
     networks:
@@ -51,8 +51,8 @@ services:
     volumes: 
       #- db:/var/lib/postgresql/data
       # use local folder to persist data
-      - "${POSTGRES_PERSIST_FOLDER_OR_VOLUME:-./data}:/var/lib/postgresql/data"
-      - ./db/init.sql:/docker-entrypoint-initdb.d/create_tables.sql
+      - "${POSTGRES_PERSIST_FOLDER_OR_VOLUME:-./.data}:/var/lib/postgresql/data"
+      #- ./db/init.sql:/docker-entrypoint-initdb.d/create_tables.sql
 
   redis:
     image: redis:6.2-alpine
