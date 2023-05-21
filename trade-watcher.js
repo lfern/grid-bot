@@ -3,8 +3,8 @@ const pg = require('pg');
 const {Bitfinex} = require('./src/crypto/exchanges/Bitfinex');
 require('dotenv').config();
 const {sleep} = require('./src/crypto/exchanges/utils/timeutils');
-const {watchMyTrades, watchTrades} = require('./src/crypto/exchanges/utils/procutils');
-
+const {watchMyTrades} = require('./src/crypto/exchanges/utils/procutils');
+const {exchangeInstance} = require('./src/crypto/exchanges/exchanges');
 
 const myTradesQueue = new Queue("myTrades", {
     // Redis configuration
@@ -72,7 +72,13 @@ postgresDBConnect();
         if (client != null) {
             console.log("Checking...");
             try {
-                let accounts = await client.query("SELECT * from accounts");
+                let accounts = await client.query(`
+                    SELECT accounts.*, exchanges.exchange_name, account_types.account_type
+                    FROM accounts, account_types, exchanges
+                    WHERE accounts.account_type_id = account_types.id and
+                        accounts.exchange_id = exchanges.id 
+                `);
+
                 let lastIds = [];
                 // Create connections for new accounts
                 for(let i=0; i < accounts.rows.length; i++) {
@@ -81,7 +87,8 @@ postgresDBConnect();
                     lastIds.push(id);
                     if (!(id in currentConnections)) {
                         console.log(account);
-                        const exchange = new Bitfinex({
+                        const exchange = exchangeInstance(account.exchange_name, {
+                            exchangeType: account.account_type,
                             rateLimit: 1000,  // testing 1 second though it is not recommended (I think we should not send too many requests/second)
                             apiKey: account.api_key,
                             secret: account.api_secret,
@@ -92,7 +99,7 @@ postgresDBConnect();
 
                         await exchange.loadMarkets();
 
-                        let res = watchTrades(exchange, "BTC/USDT:USDT", async (trades) => {
+                        let res = watchMyTrades(exchange, undefined, async (trades) => {
                             const options = {
                                 attempts: 0,
                                 removeOnComplete: true,
