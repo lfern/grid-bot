@@ -31,7 +31,8 @@
     "ccxt": "^3.0.99",
     "dotenv": "^16.0.3",
     "lodash": "^4.17.21",
-    "pg": "^8.10.0"
+    "pg": "^8.10.0",
+    "sequelize": "^6.31.1"
   },
   "devDependencies": {
     "nodemon": "^2.0.22"
