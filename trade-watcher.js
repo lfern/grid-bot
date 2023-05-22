@@ -6,6 +6,7 @@ const {sleep} = require('./src/crypto/exchanges/utils/timeutils');
 const {watchMyTrades} = require('./src/crypto/exchanges/utils/procutils');
 const {exchangeInstance} = require('./src/crypto/exchanges/exchanges');
 const {DbHelper} = require('./src/db/DbHelper')
+const models = require('./models');
 
 const myTradesQueue = new Queue("myTrades", {
     // Redis configuration
@@ -15,7 +16,7 @@ const myTradesQueue = new Queue("myTrades", {
         password: process.env.REDIS_PASSWORD,
     },
 });
-
+/*
 const dbHelper = new DbHelper(
     process.env.POSTGRES_USERNAME,
     process.env.POSTGRES_HOSTNAME,
@@ -23,31 +24,39 @@ const dbHelper = new DbHelper(
     process.env.POSTGRES_PASSWORD,
     process.env.POSTGRES_PORT,
 );
-
+*/
 let currentConnections = {};
 (async () => {
     while (true) {
         console.log("Checking postgresql client is connected ...");
-        if (dbHelper.client != null) {
-            console.log("Check new accounts...");
-            try {
-                let accounts = await dbHelper.client.query(`
-                    SELECT accounts.*, exchanges.exchange_name, account_types.account_type
-                    FROM accounts, account_types, exchanges
-                    WHERE accounts.account_type_id = account_types.id and
-                        accounts.exchange_id = exchanges.id 
-                `);
+        {
+        try {
+            const accounts = await models.Account.findAll({
+                include: [models.Account.Exchange,
+                models.Account.AccountType]
+            });
+
+//        if (dbHelper.client != null) {
+//            console.log("Check new accounts...");
+//            try {
+//                let accounts = await dbHelper.client.query(`
+//                    SELECT accounts.*, exchanges.exchange_name, account_types.account_type
+//                    FROM accounts, account_types, exchanges
+//                    WHERE accounts.account_type_id = account_types.id and
+//                        accounts.exchange_id = exchanges.id 
+//                `);
 
                 let lastIds = [];
                 // Create connections for new accounts
-                for(let i=0; i < accounts.rows.length; i++) {
-                    let account = accounts.rows[i];
+//                for(let i=0; i < accounts.rows.length; i++) {
+                for(let i=0; i < accounts.length; i++) {
+                    let account = accounts[i];
                     let id = account.id.toString();
                     lastIds.push(id);
                     if (!(id in currentConnections)) {
                         console.log('New account: ' + account.name);
-                        const exchange = exchangeInstance(account.exchange_name, {
-                            exchangeType: account.account_type,
+                        const exchange = exchangeInstance(account.exchange.exchange_name, {
+                            exchangeType: account.account_type.account_type,
                             rateLimit: 1000,  // testing 1 second though it is not recommended (I think we should not send too many requests/second)
                             apiKey: account.api_key,
                             secret: account.api_secret,
