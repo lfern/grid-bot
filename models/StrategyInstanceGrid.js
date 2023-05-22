@@ -1,0 +1,91 @@
+'use strict';
+
+const StrategyInstanceModel = require('./StrategyInstance');
+
+/** @typedef {import('sequelize').Sequelize} Sequelize */
+/** @typedef {import('sequelize').DataTypes} DataTypes */
+
+/**
+ * 
+ * @param {Sequelize} sequelize 
+ * @param {DataTypes} DataTypes 
+ */
+module.exports = (sequelize, DataTypes) => {
+    const StrategyInstance = StrategyInstanceModel(sequelize, DataTypes);
+
+    var StrategyInstanceGrid = sequelize.define('StrategyInstanceGrid', {
+        id: {
+            type: DataTypes.INTEGER,
+            allowNull: false,
+            primaryKey: true,
+            autoIncrement: true
+        },
+        strategy_instance_id: {
+            allowNull: false,
+            type: DataTypes.INTEGER,
+            references: {
+                model: {
+                    tableName: 'strategy_instances'
+                },
+                key: 'id'
+            }
+        },
+        price: {
+            allowNull: false,
+            type: DataTypes.DECIMAL(30,15),
+        },
+        buy_order_id: {
+            allowNull: false,
+            type:DataTypes.INTEGER
+        },
+        buy_order_qty: {
+            allowNull: false,
+            type: DataTypes.DECIMAL(30,15),
+        },
+        buy_order_cost: {
+            allowNull: false,
+            type: DataTypes.DECIMAL(30,15),
+        },
+        sell_order_id: {
+            allowNull: false,
+            type:DataTypes.INTEGER
+        },
+        sell_order_qty: {
+            allowNull: false,
+            type: DataTypes.DECIMAL(30,15),
+        },
+        sell_order_cost: {
+            allowNull: false,
+            type: DataTypes.DECIMAL(30,15),
+        },
+        position_before_order: {
+            allowNull: true,
+            type: DataTypes.DECIMAL(30,15),
+        },
+        order_qty: {
+            allowNull: true,
+            type: DataTypes.DECIMAL(30,15),
+        },
+        side: {
+            allowNull: true,
+            type: DataTypes.ENUM('buy', 'sell'),
+        },
+        active: {
+            allowNull: true,
+            type: DataTypes.BOOLEAN,
+        },
+        exchange_order_id: {
+            allowNull: true,
+            type: DataTypes.STRING,
+        }
+    }, {
+        tableName: 'strategy_instance_grids'
+    });
+ 
+    StrategyInstanceGrid.StrategyInstance = StrategyInstanceGrid.belongsTo(StrategyInstance, {
+        as: 'strategy_instance',
+        foreignKey: 'strategy_instance_id'
+    });
+
+    return StrategyInstanceGrid;
+}
