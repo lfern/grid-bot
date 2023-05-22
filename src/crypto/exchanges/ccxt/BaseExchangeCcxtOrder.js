@@ -8,6 +8,7 @@ class BaseExchangeCcxtOrder extends BaseExchangeOrder {
      * @param {ccxt.Order} ccxtOrder 
      */
     constructor(ccxtOrder) {
+        super();
         /** @type {ccxt.Order} */
         this.ccxtOrder = ccxtOrder;
     }

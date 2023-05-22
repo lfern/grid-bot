@@ -1,4 +1,7 @@
 const {BaseExchangeOrder} = require('./BaseExchangeOrder');
+const {BaseExchangePosition} = require('./BaseExchangePosition');
+const {BaseExchangeTrade} = require('./BaseExchangeTrade');
+const ccxt = require('ccxt');
 /**
  * ExchangeOptions type definitions
  * @typedef {Object} ExchangeOptions
@@ -69,6 +72,64 @@ class BaseExchange {
      */
     async loadMarkets(reload = false) {
         throw new Error("NOT IMPLEMENTED");
+    }
+
+    /**
+     * 
+     * @returns {ccxt.Balance}
+     */
+    async fetchBalance() {
+        throw new Error("Not implemented");
+    }
+
+    /**
+     * 
+     * @param {string} symbol
+     * @returns {[BaseExchangePosition]}
+     */
+    async fetchPositions(symbol = undefined) {
+        throw new Error("Not implemented");
+    }
+
+    /**
+     * 
+     * @param {string} symbol
+     * @param {datetime} since
+     * @param {int} limit
+     * @returns {[BaseExchangeTrade]}
+     */
+    async fetchTrades(symbol, since = undefined, limit = undefined) {
+        throw new Error("Not implemented");
+    }
+    
+    /**
+     * Get market info
+     * 
+     * @param {string} symbol 
+     * @returns {ccxt.Market}
+     */
+    market(symbol) {
+        throw new Error("Not implemented")
+    }
+
+    /**
+     * 
+     * @param {string} symbol 
+     * @param {float} amount 
+     * @returns {float}
+     */
+    amountToPrecision(symbol, amount) {
+        throw new Error("Not implemented")
+    }
+
+    /**
+     * 
+     * @param {string} symbol 
+     * @param {float} price 
+     * @returns {float}
+     */
+    priceToPrecision(symbol, price) {
+        throw new Error("Not implemented")
     }
 
     /**

@@ -4,6 +4,7 @@ const exc = require('../exceptions/ExchangeError');
 const ccxt = require('ccxt');
 const _ = require("lodash");
 const {BaseExchangeCcxtOrder} = require('./BaseExchangeCcxtOrder');
+const {BaseExchangeCcxtPosition} = require('./BaseExchangeCcxtPosition');
 const {BaseExchangeCcxtTrade} = require('./BaseExchangeCcxtTrade');
 
 /** @typedef {import('../BaseExchange').ExchangeOptions} ExchangeOptions */
@@ -75,6 +76,48 @@ class BaseExchangeCcxt extends BaseExchange {
     /** @inheritdoc */
     async loadMarkets(reload = false) {
         return await this.ccxtExchange.loadMarkets(reload);
+    }
+
+    /** @inheritdoc */
+    async fetchBalance() {
+        return await this.ccxtExchange.fetchBalance();
+    }
+
+    /** @inheritdoc */
+    async fetchPositions(symbol = undefined) {
+        let positions = await this.ccxtExchange.fetchPositions(symbol);
+        let newPositions = [];
+        positions.forEach(p => {
+            newPositions.push(new BaseExchangeCcxtPosition(p));
+        })
+
+        return newPositions;
+    }
+
+    /** @inheritdoc */
+    async fetchTrades(symbol, since = undefined, limit = undefined) {
+        let trades = await this.ccxtExchange.fetchTrades(symbol, since, limit);
+        let newTrades = [];
+        trades.forEach(t => {
+            newTrades.push(new BaseExchangeCcxtTrade(t));
+        })
+
+        return newTrades;
+    }
+
+    /** @inheritdoc */
+    market(symbol) {
+        return this.ccxtExchange.market(symbol);
+    }
+
+    /** @inheritdoc */
+    amountToPrecision(symbol, amount) {
+        return this.ccxtExchange.amountToPrecision(symbol, amount);
+    }
+
+    /** @inheritdoc */
+    priceToPrecision(symbol, price) {
+        return this.ccxtExchange.priceToPrecision(symbol, price);
     }
 
     /** @inheritdoc */

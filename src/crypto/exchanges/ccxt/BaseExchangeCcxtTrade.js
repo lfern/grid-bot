@@ -1,68 +1,70 @@
 const ccxt = require('ccxt');
+const {BaseExchangeTrade} = require('../BaseExchangeTrade');
 
-class BaseExchangeCcxtTrade {
+class BaseExchangeCcxtTrade extends BaseExchangeTrade {
     /**
      * 
      * @param {ccxt.Trade} ccxtTrade 
      */
     constructor(ccxtTrade) {
+        super();
         /** @type {ccxt.Trade} */
         this.ccxtTrade = ccxtTrade;
     }
 
     /** @inheritdoc */
     get amount() {
-        this.ccxtTrade.amount;
+        return this.ccxtTrade.amount;
     }
 
     /** @inheritdoc */
     get cost() {
-        this.ccxtTrade.cost;
+        return this.ccxtTrade.cost;
     }
 
     /** @inheritdoc */
     get datetime() {
-        this.ccxtTrade.datetime;
+        return this.ccxtTrade.datetime;
     }
 
     /** @inheritdoc */
     get feeCost() {
-        this.ccxtTrade.fee.cost;
+        return this.ccxtTrade.fee.cost;
     }
 
     /** @inheritdoc */
     get feeCurrency() {
-        this.ccxtTrade.fee.currency;
+        return this.ccxtTrade.fee.currency;
     }
 
     /** @inheritdoc */
     get id() {
-        this.ccxtTrade.id;
+        return this.ccxtTrade.id;
     }
 
     /** @inheritdoc */
     get order() {
-        this.ccxtTrade.order;
+        return this.ccxtTrade.order;
     }
 
     /** @inheritdoc */
     get price() {
-        this.ccxtTrade.price;
+        return this.ccxtTrade.price;
     }
 
     /** @inheritdoc */
     get side() {
-        this.ccxtTrade.side;
+        return this.ccxtTrade.side;
     }
 
     /** @inheritdoc */
     get symbol() {
-        this.ccxtTrade.symbol;
+        return this.ccxtTrade.symbol;
     }
 
     /** @inheritdoc */
     get timestamp() {
-        this.ccxtTrade.timestamp;
+        return this.ccxtTrade.timestamp;
     }
 
     /** @inheritdoc */
