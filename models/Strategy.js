@@ -77,6 +77,10 @@ module.exports = (sequelize, DataTypes) => {
         step: {
             allowNull: false,
             type: DataTypes.DECIMAL(5,2),
+        },
+        step_type: {
+            allowNull: false,
+            type: DataTypes.ENUM('percent', 'absolute'),
         }
     }, {
         tableName: 'strategies'
