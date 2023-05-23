@@ -87,7 +87,7 @@ class BaseExchangeCcxt extends BaseExchange {
     }
 
     /** @inheritdoc */
-    async fetchOrder(id, symbol = null) {
+    async fetchOrder(id, symbol = undefined) {
         return new BaseExchangeCcxtOrder(
             await this.ccxtExchange.fetchOrder(id, symbol)
         );
@@ -146,7 +146,7 @@ class BaseExchangeCcxt extends BaseExchange {
     }
 
     /** @inheritdoc */
-    async watchMyOrders(symbol = null){
+    async watchMyOrders(symbol = undefined){
         let orders = await this.ccxtExchange.watchOrders(symbol);
 
         let newOrders = [];

@@ -88,7 +88,7 @@ class BaseExchange {
      * @param {string | undefined} symbol 
      * @returns {BaseExchangeOrder}
      */
-    async fetchOrder(id, symbol = null) {
+    async fetchOrder(id, symbol = undefined) {
         throw new Error("NOT IMPLEMENTED");
     }
 
@@ -154,7 +154,7 @@ class BaseExchange {
      * @param {string|undefined} symbol 
      * @returns {[BaseExchangeOrder]}
      */
-    async watchMyOrders(symbol = null){
+    async watchMyOrders(symbol = undefined){
         throw new Error("NOT IMPLEMENTED");
     }
     
@@ -163,7 +163,7 @@ class BaseExchange {
      * @param {string|undefined} symbol 
      * @returns {[BaseExchangeTrade]}
      */
-    async watchMyTrades(symbol = null){
+    async watchMyTrades(symbol = undefined){
         throw new Error("NOT IMPLEMENTED");
     }
 

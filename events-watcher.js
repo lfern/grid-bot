@@ -1,7 +1,12 @@
 const Queue = require("bull");
 require('dotenv').config();
 const {sleep} = require('./src/crypto/exchanges/utils/timeutils');
-const {watchMyTrades} = require('./src/crypto/exchanges/utils/procutils');
+const {
+    balanceEventHandler,
+    orderEventHandler,
+    tradeEventHandler
+} = require('./src/grid/exchange-events');
+
 const {exchangeInstance} = require('./src/crypto/exchanges/exchanges');
 const models = require('./models');
 
@@ -33,159 +38,85 @@ const myBalanceQueue = new Queue("myBalance", {
 });
 
 let currentConnections = {};
+
+const removeAccount = function(account) {
+    if (account in currentConnections){
+        currentConnections[account].balanceWatcherCancel();
+        currentConnections[account].tradeWatcherCancel();
+        //currentConnections[account].orderWatcherCancel();
+        currentConnections[account].exchange.close().catch(e => { });
+        delete currentConnections[account];
+    }
+};
+
 (async () => {
     while (true) {
         console.log("Checking postgresql client is connected ...");
-        {
         try {
             const accounts = await models.Account.findAll({
                 include: [models.Account.Exchange,
                 models.Account.AccountType]
             });
 
-//        if (dbHelper.client != null) {
-//            console.log("Check new accounts...");
-//            try {
-//                let accounts = await dbHelper.client.query(`
-//                    SELECT accounts.*, exchanges.exchange_name, account_types.account_type
-//                    FROM accounts, account_types, exchanges
-//                    WHERE accounts.account_type_id = account_types.id and
-//                        accounts.exchange_id = exchanges.id 
-//                `);
 
-                let lastIds = [];
-                // Create connections for new accounts
-//                for(let i=0; i < accounts.rows.length; i++) {
-                for(let i=0; i < accounts.length; i++) {
-                    let account = accounts[i];
-                    let id = account.id.toString();
-                    lastIds.push(id);
-                    if (!(id in currentConnections)) {
-                        console.log('New account: ' + account.name);
-                        const exchange = exchangeInstance(account.exchange.exchange_name, {
-                            exchangeType: account.account_type.account_type,
-                            rateLimit: 1000,  // testing 1 second though it is not recommended (I think we should not send too many requests/second)
-                            apiKey: account.api_key,
-                            secret: account.api_secret,
-                            // this is their documented ratelimit according to this page:
-                            // https://docs.bitfinex.com/v1/reference#rest-public-orderbook
-                            // 'rateLimit': 1000,  # once every second, 60 times per minute – won't work, will throw DDoSProtection
-                        });
+            let lastIds = [];
+            // Create connections for new accounts
+            for(let i=0; i < accounts.length; i++) {
+                let account = accounts[i];
+                let id = account.id.toString();
+                lastIds.push(id);
+                if (!(id in currentConnections)) {
+                    console.log('New account: ' + account.id);
+                    const exchange = exchangeInstance(account.exchange.exchange_name, {
+                        exchangeType: account.account_type.account_type,
+                        rateLimit: 1000,  // testing 1 second though it is not recommended (I think we should not send too many requests/second)
+                        apiKey: account.api_key,
+                        secret: account.api_secret,
+                        // this is their documented ratelimit according to this page:
+                        // https://docs.bitfinex.com/v1/reference#rest-public-orderbook
+                        // 'rateLimit': 1000,  # once every second, 60 times per minute – won't work, will throw DDoSProtection
+                    });
 
-                        await exchange.loadMarkets();
+                    await exchange.loadMarkets();
 
-                        let tradeWatcher = watchMyTrades(exchange, undefined, (trades) => {
-                            const options = {
-                                attempts: 0,
-                                removeOnComplete: true,
-                                removeOnFail: true,
-                            };
+                    let tradeWatcher = tradeEventHandler(id, exchange, myTradesQueue);
+                    let orderWatcher = orderEventHandler(id, exchange, myOrdersQueue);
+                    let balanceWatcher = balanceEventHandler(id, exchange, myBalanceQueue);
 
-                            // send to redis
-                            for (let i=0; i < trades.length; i++) {
-                                console.log(trades[i].toJson());
-                                myTradesQueue.add({
-                                    account: id,
-                                    trade: trades[i].toJson()
-                                }, options).then(ret => {
-                                    console.log(ret);
-                                }). catch(err => {
-                                    console.error(err);
-                                });
-                            }
-                        });
+                    currentConnections[id] = {
+                        exchange,
+                        tradeWatcherCancel: tradeWatcher.cancel,
+                        orderWatcherCancel: orderWatcher.cancel,
+                        balanceWatcherCancel: balanceWatcher.cancel
+                    };
 
-                        let orderWatcher = watchMyOrders(exchange, undefined, (orders) => {
-                            const options = {
-                                attempts: 0,
-                                removeOnComplete: true,
-                                removeOnFail: true,
-                            };
+                    Promise.any([
+                        tradeWatcher.promise,
+                        orderWatcher.promise,
+                        balanceWatcher.promise,
+                    ]).then(res => {
+                        console.log(`ws closed for account ${id}, removing client`)
+                        removeAccount(id);
+                    }).catch(err => {
+                        console.log(`ws closed for account ${id} with error, removing client`)
+                        console.error(err);
+                        removeAccount(id);
+                    });
 
-                            // send to redis
-                            for (let i=0; i < orders.length; i++) {
-                                console.log(orders[i].toJson());
-                                myOrdersQueue.add({
-                                    account: id,
-                                    order: orders[i].toJson()
-                                }, options).then(ret => {
-                                    console.log(ret);
-                                }). catch(err => {
-                                    console.error(err);
-                                });
-                            }
-                        });
-
-                        let balanceWatcher = watchMyBalance(exchange, undefined, (balance) => {
-                            const options = {
-                                attempts: 0,
-                                removeOnComplete: true,
-                                removeOnFail: true,
-                            };
-
-                            // send to redis
-                            console.log(balance);
-                            myBalanceQueue.add({
-                                account: id,
-                                balance: balance
-                            }, options).then(ret => {
-                                console.log(ret);
-                            }). catch(err => {
-                                console.error(err);
-                            });
-                        });
-
-                        currentConnections[id] = {
-                            exchange,
-                            tradeWatcherCancel: tradeWatcher.cancel,
-                            orderWatcherCancel: orderWatcher.cancel,
-                            balanceWatcherCancel: balanceWatcher.cancel
-                        };
-
-                        Promise.any([
-                            tradeWatcher.promise,
-                            orderWatcher.premise,
-                            balanceWatcher.premise,
-                        ]).then(res => {
-                            console.log(`ws closed for account ${id} `)
-                            if (id in currentConnections){
-                                currentConnections[id].balanceWatcherCancel();
-                                currentConnections[id].tradeWatcherCancel();
-                                currentConnections[id].orderWatcherCancel();
-                                currentConnections[id].exchange.close().catch(e => { });
-                                delete currentConnections[id];
-                            }
-                        }).catch(err => {
-                            console.log(`ws closed for account ${id} with error`)
-                            console.error(err);
-                            if (id in currentConnections){
-                                currentConnections[id].balanceWatcherCancel();
-                                currentConnections[id].tradeWatcherCancel();
-                                currentConnections[id].orderWatcherCancel();
-                                currentConnections[id].exchange.close().catch(e => { });
-                                delete currentConnections[id];
-                            }
-                        })
-
-                    }
                 }
-                // remove unused accounts 
-                let currentIds = Object.keys(currentConnections);
-                for (let i = 0; i < currentIds.length; i++) {
-                    let id = currentIds[i];
-                    if (!lastIds.includes(id)) {
-                        console.log("Removing unused client: " + id);
-                        currentConnections[id].balanceWatcherCancel();
-                        currentConnections[id].tradeWatcherCancel();
-                        currentConnections[id].orderWatcherCancel();
-                        await currentConnections[id].exchange.close();
-                        delete currentConnections[id];
-                    }
-                }
-
-            } catch (ex) {
-                console.error(ex);
             }
+            // remove unused accounts 
+            let currentIds = Object.keys(currentConnections);
+            for (let i = 0; i < currentIds.length; i++) {
+                let id = currentIds[i];
+                if (!lastIds.includes(id)) {
+                    console.log("Removing unused client: " + id);
+                    removeAccount(id);
+                }
+            }
+
+        } catch (ex) {
+            console.error(ex);
         }
         await sleep(5000);
 

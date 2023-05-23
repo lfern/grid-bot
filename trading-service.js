@@ -9,16 +9,25 @@ const _ = require('lodash');
 const BigNumber = require('bignumber.js');
 const { GridManager } = require('./src/grid/grid');
 
-/*
-const dbHelper = new DbHelper(
-    process.env.POSTGRES_USERNAME,
-    process.env.POSTGRES_HOSTNAME,
-    process.env.POSTGRES_DB,
-    process.env.POSTGRES_PASSWORD,
-    process.env.POSTGRES_PORT,
-);
-*/
 const myTradesQueue = new Queue("myTrades", {
+    // Redis configuration
+    redis: {
+        host: process.env.REDIS_SERVER || "127.0.0.1",
+        port: process.env.REDIS_PORT || 6379,
+        password: process.env.REDIS_PASSWORD,
+    },
+});
+
+const myOrdersQueue = new Queue("myOrders", {
+    // Redis configuration
+    redis: {
+        host: process.env.REDIS_SERVER || "127.0.0.1",
+        port: process.env.REDIS_PORT || 6379,
+        password: process.env.REDIS_PASSWORD,
+    },
+});
+
+const myBalanceQueue = new Queue("myBalance", {
     // Redis configuration
     redis: {
         host: process.env.REDIS_SERVER || "127.0.0.1",
@@ -32,7 +41,19 @@ myTradesQueue.process(async (job, done) => {
     console.log(job.data);
     done(null, { message: "trade executed" });
 });
-// TODO: wait for balance updates from redis
+
+
+// wait for trades from redis server
+myOrdersQueue.process(async (job, done) => {
+    console.log(job.data);
+    done(null, { message: "order executed" });
+});
+
+// wait for trades from redis server
+myBalanceQueue.process(async (job, done) => {
+    console.log(job.data);
+    done(null, { message: "balance executed" });
+});
 
 // query database for start/stop grids
 const startStopProcess = cancelablePromise(async (resolve, reject, signal) => {
@@ -43,20 +64,8 @@ const startStopProcess = cancelablePromise(async (resolve, reject, signal) => {
     });
 
     while (!cancelled) {
-        //const toBeStoppedInstances = await dbHelper.client.query(`
-        //SELECT * FROM instances WHERE running = true AND 
-        //    stopped_at = null AND stop_requested_at != null
-        //`);
-
-        // TODO: stop (cancel orders and update db)
         await stopGrids(() => cancelled)
 
-        // Start new grids
-        //const newInstances = await dbHelper.client.query(`
-        //SELECT * FROM instances WHERE running = true AND started_at = null
-        //`); 
-
-        // TODO: start (create grid in db, send orders and check something changed while is sending: order executed or cancelled)
         await startGrids(() => cancelled);
 
         if (cancelled) break;
@@ -98,8 +107,7 @@ async function startGrids(isCancelled) {
             let instance = instances[i];
             let strategy = instance.strategy;
             let account = strategy.account;
-            let accountType = account.account_type;
-            console.log(instance);
+
             instance.started_at = models.Sequelize.fn('NOW');
             instance.save();
 
@@ -158,7 +166,6 @@ async function stopGrids(isCancelled) {
         let instance = instances[i];
         let strategy = instance.strategy;
         let account = strategy.account;
-        let accountType = account.account_type;
 
         instance.running = false;
         instance.stopped_at = models.Sequelize.fn('NOW');
@@ -172,16 +179,8 @@ async function stopGrids(isCancelled) {
             secret: account.api_secret,
         });
         try {
-            let position = await getPosition(exchange, strategy.symbol, accountType.account_type);
-            
-            let trades = await exchange.fetchTrades(strategy.symbol, undefined, 1);
-            let currentPrice = null;
-            if (trades.length > 0) {
-                console.log(trades);
-                console.log(trades[0].price)
-                currentPrice = trades[0].price;
-            }
-
+            let position = await getPosition(exchange, strategy.symbol, account.account_type.account_type);
+            let currentPrice = await exchange.fetchCurrentPrice(strategy.symbol);
             // stop grid in db
             models.StrategyInstanceEvent.create({
                 strategy_instance_id: instance.id,
@@ -194,7 +193,7 @@ async function stopGrids(isCancelled) {
                 price: currentPrice,
                 position: position,
             });
-            // TODO: cancel orders
+            // TODO: cancel orders?
         } catch (ex) {
             console.error(ex);
         }

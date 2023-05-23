@@ -2,6 +2,7 @@ let { ErrorDelay } = require('./timeutils');
 let { BaseExchange } = require('../BaseExchange');
 let ccxt = require('ccxt');
 let {BaseExchangeTrade} = require('../BaseExchangeTrade');
+let {BaseExchangeOrder} = require('../BaseExchangeOrder');
 
 /**
  * 
