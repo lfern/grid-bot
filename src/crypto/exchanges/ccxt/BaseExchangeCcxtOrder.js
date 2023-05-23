@@ -74,6 +74,12 @@ class BaseExchangeCcxtOrder extends BaseExchangeOrder {
     }
 
     /** @inheritdoc */
+    get symbol() {
+        return this.ccxtOrder.symbol;
+    }
+
+
+    /** @inheritdoc */
     get timestamp() {
         return this.ccxtOrder.timestamp;
     }

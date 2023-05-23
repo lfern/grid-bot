@@ -44,6 +44,11 @@ class BaseExchangeCcxt extends BaseExchange {
     }
 
     /** @inheritdoc */
+    amountToPrecision(symbol, amount) {
+        return this.ccxtExchange.amountToPrecision(symbol, amount);
+    }
+
+    /** @inheritdoc */
     async cancelOrder(id, symbol = null) {
         return await this.ccxtExchange.cancelOrder(is, symbol);
     }
@@ -67,20 +72,25 @@ class BaseExchangeCcxt extends BaseExchange {
     }
 
     /** @inheritdoc */
+    async fetchBalance() {
+        return await this.ccxtExchange.fetchBalance();
+    }
+    
+    /** @inheritdoc */
+    async fetchCurrentPrice(symbol) {
+        let trades = await this.fetchTrades(symbol, undefined, 1);
+        if (trades.length == 0) {
+            return null;
+        }
+        
+        return trades[0].price;
+    }
+
+    /** @inheritdoc */
     async fetchOrder(id, symbol = null) {
         return new BaseExchangeCcxtOrder(
             await this.ccxtExchange.fetchOrder(id, symbol)
         );
-    }
-
-    /** @inheritdoc */
-    async loadMarkets(reload = false) {
-        return await this.ccxtExchange.loadMarkets(reload);
-    }
-
-    /** @inheritdoc */
-    async fetchBalance() {
-        return await this.ccxtExchange.fetchBalance();
     }
 
     /** @inheritdoc */
@@ -106,13 +116,13 @@ class BaseExchangeCcxt extends BaseExchange {
     }
 
     /** @inheritdoc */
-    market(symbol) {
-        return this.ccxtExchange.market(symbol);
+    async loadMarkets(reload = false) {
+        return await this.ccxtExchange.loadMarkets(reload);
     }
 
     /** @inheritdoc */
-    amountToPrecision(symbol, amount) {
-        return this.ccxtExchange.amountToPrecision(symbol, amount);
+    market(symbol) {
+        return this.ccxtExchange.market(symbol);
     }
 
     /** @inheritdoc */
@@ -128,6 +138,23 @@ class BaseExchangeCcxt extends BaseExchange {
         }
 
         this.ccxtExchange.setMarkets(await exchange.ccxtExchange.loadMarkets());
+    }
+
+    /** @inheritdoc */
+    async watchBalance() {
+        return await this.ccxtExchange.watchBalance();
+    }
+
+    /** @inheritdoc */
+    async watchMyOrders(symbol = null){
+        let orders = await this.ccxtExchange.watchOrders(symbol);
+
+        let newOrders = [];
+        orders.forEach(o => {
+            newOrders.push(new BaseExchangeCcxtOrder(o));
+        })
+
+        return newOrders;
     }
 
     /** @inheritdoc */
@@ -152,6 +179,7 @@ class BaseExchangeCcxt extends BaseExchange {
 
         return newTrades;
     }
+
 
 }
 

@@ -23,7 +23,12 @@ class Bitfinex extends BaseExchangeCcxt {
         }
     }
 
-      /** @inheritdoc */
+    /** @inheritdoc */
+    async fetchBalance() {
+        return await this.ccxtExchange.fetchBalance({type: this.params.exchangeType == 'spot' ? 'exchange':'margin'});
+    }
+
+    /** @inheritdoc */
     async fetchPositions(symbol = undefined) {
         let positions = await this.ccxtExchange.fetchPositions(symbol);
         let newPositions = [];
@@ -35,6 +40,11 @@ class Bitfinex extends BaseExchangeCcxt {
         })
 
         return newPositions;
+    }
+
+    /** @inheritdoc */
+    async watchBalance() {
+        return await this.ccxtExchange.watchBalance({wallet: this.params.exchangeType == 'spot' ? 'exchange':'margin'});
     }
 
 }

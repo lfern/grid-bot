@@ -27,6 +27,16 @@ class BaseExchange {
     }
 
     /**
+     * 
+     * @param {string} symbol 
+     * @param {float} amount 
+     * @returns {float}
+     */
+     amountToPrecision(symbol, amount) {
+        throw new Error("Not implemented")
+    }
+
+    /**
      * Cancel order
      * @param {string} id 
      * @param {string | undefined} symbol 
@@ -57,29 +67,29 @@ class BaseExchange {
 
     /**
      * 
+     * @returns {ccxt.Balance}
+     */
+    async fetchBalance() {
+        throw new Error("Not implemented");
+    }
+
+    /**
+     * Fetch current price
+     * 
+     * @param {string} symbol 
+     */
+    async fetchCurrentPrice(symbol) {
+        throw new Error("Not implemented");
+    }
+
+    /**
+     * 
      * @param {string} id 
      * @param {string | undefined} symbol 
      * @returns {BaseExchangeOrder}
      */
     async fetchOrder(id, symbol = null) {
         throw new Error("NOT IMPLEMENTED");
-    }
-
-    /**
-     * 
-     * @param {boolean} reload 
-     * @returns 
-     */
-    async loadMarkets(reload = false) {
-        throw new Error("NOT IMPLEMENTED");
-    }
-
-    /**
-     * 
-     * @returns {ccxt.Balance}
-     */
-    async fetchBalance() {
-        throw new Error("Not implemented");
     }
 
     /**
@@ -101,6 +111,16 @@ class BaseExchange {
     async fetchTrades(symbol, since = undefined, limit = undefined) {
         throw new Error("Not implemented");
     }
+
+    /**
+     * 
+     * @param {boolean} reload 
+     * @returns 
+     */
+    async loadMarkets(reload = false) {
+        throw new Error("NOT IMPLEMENTED");
+    }
+    
     
     /**
      * Get market info
@@ -115,16 +135,6 @@ class BaseExchange {
     /**
      * 
      * @param {string} symbol 
-     * @param {float} amount 
-     * @returns {float}
-     */
-    amountToPrecision(symbol, amount) {
-        throw new Error("Not implemented")
-    }
-
-    /**
-     * 
-     * @param {string} symbol 
      * @param {float} price 
      * @returns {float}
      */
@@ -132,6 +142,22 @@ class BaseExchange {
         throw new Error("Not implemented")
     }
 
+    /**
+     * Watch Balance
+     */
+    async watchBalance() {
+        throw new Error("Not IMPLEMENTED");
+    }
+
+    /**
+     * Watch my orders
+     * @param {string|undefined} symbol 
+     * @returns {[BaseExchangeOrder]}
+     */
+    async watchMyOrders(symbol = null){
+        throw new Error("NOT IMPLEMENTED");
+    }
+    
     /**
      * Watch my trades
      * @param {string|undefined} symbol 
@@ -149,6 +175,7 @@ class BaseExchange {
     async watchTrades(symbol){
         throw new Error("NOT IMPLEMENTED");
     }
+
 }
 
 module.exports = { BaseExchange };

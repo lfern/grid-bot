@@ -97,6 +97,15 @@ class BaseExchangeOrder {
     }
 
     /**
+     * Order symbol
+     * @returns {string}
+     */
+    get symbol() {
+        throw new Error("NOT IMPLEMENTED");
+    }
+    
+
+    /**
      * Order timestamp
      * @returns {number}
      */

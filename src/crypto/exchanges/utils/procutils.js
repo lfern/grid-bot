@@ -1,4 +1,5 @@
 let { ErrorDelay } = require('./timeutils');
+let { BaseExchange } = require('../BaseExchange');
 let ccxt = require('ccxt');
 let {BaseExchangeTrade} = require('../BaseExchangeTrade');
 
@@ -32,9 +33,23 @@ function cancelablePromise(asyncfn) {
  */
 
 /**
+ * Order callback
+ *
+ * @callback OrderCallback
+ * @param {[BaseExchangeOrder]} orderListList
+ */
+
+/**
+ * Balance callback
+ *
+ * @callback BalanceCallback
+ * @param {ccxt.Balance} balance
+ */
+
+/**
  * Watch trades to observe current price
  * 
- * @param {ccxt.exchange} exchange exchange ccxt class
+ * @param {BaseExchange} exchange exchange class
  * @param {string} symbol market symbol where place orders
  * @param {TradeCallback} cb trade callback
  * 
@@ -79,10 +94,9 @@ function watchTrades(exchange, symbol, cb) {
 /**
  * Watch my executed trades from websocket events
  * 
- * @param {ccxt.exchange} exchange exchange ccxt class
+ * @param {BaseExchange} exchange exchange class
  * @param {string} symbol market symbol where place orders
  * @param {TradeCallback} cb trade callback
- * @param {int} amount amount to buy when creating and order
  * 
  * @returns {{ret: function(): void, promise: Promise}}
  */
@@ -103,7 +117,7 @@ function watchMyTrades(exchange, symbol, cb) {
                 while (!cancelled) {
                     // Wait for new trades
                     let trades = await exchange.watchMyTrades(symbol);
-                    // for each trade
+                    // fOrderor each trade
                     cb(trades);
                 }
             } catch (ex) {
@@ -120,6 +134,99 @@ function watchMyTrades(exchange, symbol, cb) {
             }
         }
         console.log("Exit listening trades")
+        resolve();
+    });
+}
+
+/**
+ * Watch my orders from websocket events
+ * 
+ * @param {BaseExchange} exchange exchange class
+ * @param {string} symbol market symbol where place orders
+ * @param {OrderCallback} cb trade callback
+ * 
+ * @returns {{ret: function(): void, promise: Promise}}
+ */
+ function watchMyOrders(exchange, symbol, cb) {
+    return cancelablePromise(async (resolve, reject, signal) => {
+        let cancelled = false;
+        signal.catch(err => {
+            // Exit when canceled externally
+            cancelled = true;
+            // reject(err);
+        });
+
+        let delayer = new ErrorDelay();
+        while(!cancelled) {
+            delayer.restoring();
+
+            try {
+                while (!cancelled) {
+                    // Wait for new trades
+                    let orders = await exchange.watchMyOrders(symbol);
+                    // for each trade
+                    cb(orders);
+                }
+            } catch (ex) {
+                // "connection closed by remote server, closing code 1006"
+                // "getaddrinfo ENOTFOUND api-pub.bitfinex.com"
+                console.error(ex);
+                if (ex instanceof ccxt.NetworkError) {
+                    await delayer.errorAndWait();
+                } else {
+                    console.log("Exit listening trades")
+                    // Exit if there is any error in the websocket connection
+                    throw ex;
+                }
+            }
+        }
+        console.log("Exit listening trades")
+        resolve();
+    });
+}
+
+/**
+ * Watch my executed trades from websocket events
+ * 
+ * @param {BaseExchange} exchange exchange class
+ * @param {BalanceCallback} cb balance callback
+ * 
+ * @returns {{ret: function(): void, promise: Promise}}
+ */
+ function watchMyBalance(exchange, cb) {
+    return cancelablePromise(async (resolve, reject, signal) => {
+        let cancelled = false;
+        signal.catch(err => {
+            // Exit when canceled externally
+            cancelled = true;
+            // reject(err);
+        });
+
+        let delayer = new ErrorDelay();
+        while(!cancelled) {
+            delayer.restoring();
+
+            try {
+                while (!cancelled) {
+                    // Wait for new trades
+                    let balance = await exchange.watchBalance();
+                    // for each trade
+                    cb(balance);
+                }
+            } catch (ex) {
+                // "connection closed by remote server, closing code 1006"
+                // "getaddrinfo ENOTFOUND api-pub.bitfinex.com"
+                console.error(ex);
+                if (ex instanceof ccxt.NetworkError) {
+                    await delayer.errorAndWait();
+                } else {
+                    console.log("Exit listening balance")
+                    // Exit if there is any error in the websocket connection
+                    throw ex;
+                }
+            }
+        }
+        console.log("Exit listening balance")
         resolve();
     });
 }
@@ -156,4 +263,6 @@ module.exports = {
     watchTrades,
     watchMyTrades,
     checkMyTradesInterval,
+    watchMyBalance,
+    watchMyOrders
 }
