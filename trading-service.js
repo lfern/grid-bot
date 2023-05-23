@@ -5,6 +5,10 @@ require('dotenv').config();
 const {sleep} = require('./src/crypto/exchanges/utils/timeutils');
 const models = require('./models');
 const { exchangeInstance } = require('./src/crypto/exchanges/exchanges');
+const _ = require('lodash');
+const BigNumber = require('bignumber.js');
+const { GridManager } = require('./src/grid/grid');
+
 /*
 const dbHelper = new DbHelper(
     process.env.POSTGRES_USERNAME,
@@ -90,112 +94,40 @@ async function startGrids(isCancelled) {
     });
 
     for (let i=0; i<instances.length && !isCancelled(); i++) {
-        let instance = instances[i];
-        let strategy = instance.strategy;
-        let account = strategy.account;
-        let accountType = account.account_type;
-        console.log(instance);
-        instance.started_at = models.Sequelize.fn('NOW');
-        instance.save();
+        try {
+            let instance = instances[i];
+            let strategy = instance.strategy;
+            let account = strategy.account;
+            let accountType = account.account_type;
+            console.log(instance);
+            instance.started_at = models.Sequelize.fn('NOW');
+            instance.save();
 
-        // create exchange
-        const exchange = exchangeInstance(account.exchange.exchange_name, {
-            exchangeType: account.account_type.account_type,
-            rateLimit: 1000,  // testing 1 second though it is not recommended (I think we should not send too many requests/second)
-            apiKey: account.api_key,
-            secret: account.api_secret,
-        });
-
-        // Create grid in db
-        let trades = await exchange.fetchTrades(strategy.symbol, undefined, 1);
-        if (trades.length == 0) {
-            console.error("Could not get current price from exchange")
-            continue;
-        }
-        let currentPrice = trades[0].price;
-
-        let position = strategy.initial_position;
-        for (let i=0; i < strategy.sell_orders; i++) {
-            let gridPrice = exchange.priceToPrecision(
-                strategy.symbol,
-                currentPrice + (i+1) * currentPrice * strategy.step / 100
-            );
-
-            let buyId = strategy.sell_orders - i - 1;
-            var cost = exchange.priceToPrecision(
-                strategy.symbol,
-                strategy.order_qty * gridPrice
-            );
-
-            let orderQty = exchange.amountToPrecision(strategy.symbol, strategy.order_qty);
-
-            let newSell = {
-                strategy_instance_id: instance.id,
-                price: gridPrice,
-                buy_order_id: buyId,
-                buy_order_qty: orderQty,
-                buy_order_cost: cost,
-                sell_order_id: buyId + 1,
-                sell_order_qty: orderQty,
-                sell_order_cost: cost,
-            };
-/*
-            newBuy = _.extend(newBuy, {
-                position_before_order: position,
-                order_qty:,
-                side:,
-                active:,
-                exchange_order_id:,
-
+            // create exchange
+            const exchange = exchangeInstance(account.exchange.exchange_name, {
+                exchangeType: account.account_type.account_type,
+                rateLimit: 1000,  // testing 1 second though it is not recommended (I think we should not send too many requests/second)
+                apiKey: account.api_key,
+                secret: account.api_secret,
             });
 
-            position += strategy.order_qty;*/
+            // Create grid in db
+            let currentPrice = await exchange.fetchCurrentPrice(strategy.symbol);
+            if (currentPrice == null) {
+                console.error("Could not get current price from exchange")
+                continue;
+            }
 
-            models.StrategyInstanceGrid.create(newSell);
+            let gridCreator = new GridManager(exchange, instance.id, strategy, currentPrice)
+            let entries = gridCreator.createGridEntries();
+            for (let i=0;i<entries.length;i++) {
+                models.StrategyInstanceGrid.create(entries[i]);
+            }
+            gridCreator.createInitialOrders(entries);
+        } catch (ex) {
+            console.error(ex);
         }
-
-        for (let i=0; i<strategy.buy_orders; i++) {
-            let gridPrice = exchange.priceToPrecision(
-                strategy.symbol,
-                currentPrice - (i+1) * currentPrice * strategy.step / 100
-            );
-
-            let buyId = strategy.sell_orders + i;
-            let cost = exchange.priceToPrecision(
-                strategy.symbol,
-                strategy.order_qty * gridPrice
-            );
-
-            let orderQty = exchange.amountToPrecision(strategy.symbol, strategy.order_qty);
-
-            let newBuy = {
-                strategy_instance_id: instance.id,
-                price: gridPrice,
-                buy_order_id: buyId,
-                buy_order_qty: orderQty,
-                buy_order_cost: cost,
-                sell_order_id: buyId + 1,
-                sell_order_qty: orderQty,
-                sell_order_cost: cost,
-            };
-/*
-            newBuy = _.extend(newBuy, {
-                position_before_order: position,
-                order_qty:,
-                side:,
-                active:,
-                exchange_order_id:,
-
-            });
-
-            position += strategy.order_qty;*/
-
-            models.StrategyInstanceGrid.create(newBuy);
-        
-        }
-        // Create orders loop, checking if some order is executed and checking if someone stopped the grid meamwhile
     }
-
 }
 
 async function stopGrids(isCancelled) {
@@ -240,7 +172,7 @@ async function stopGrids(isCancelled) {
             secret: account.api_secret,
         });
         try {
-            let position = getPosition(exchange, strategy.symbol, accountType.account_type);
+            let position = await getPosition(exchange, strategy.symbol, accountType.account_type);
             
             let trades = await exchange.fetchTrades(strategy.symbol, undefined, 1);
             let currentPrice = null;

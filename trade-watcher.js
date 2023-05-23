@@ -1,11 +1,8 @@
 const Queue = require("bull");
-const pg = require('pg');
-const {Bitfinex} = require('./src/crypto/exchanges/Bitfinex');
 require('dotenv').config();
 const {sleep} = require('./src/crypto/exchanges/utils/timeutils');
 const {watchMyTrades} = require('./src/crypto/exchanges/utils/procutils');
 const {exchangeInstance} = require('./src/crypto/exchanges/exchanges');
-const {DbHelper} = require('./src/db/DbHelper')
 const models = require('./models');
 
 const myTradesQueue = new Queue("myTrades", {
@@ -16,15 +13,25 @@ const myTradesQueue = new Queue("myTrades", {
         password: process.env.REDIS_PASSWORD,
     },
 });
-/*
-const dbHelper = new DbHelper(
-    process.env.POSTGRES_USERNAME,
-    process.env.POSTGRES_HOSTNAME,
-    process.env.POSTGRES_DB,
-    process.env.POSTGRES_PASSWORD,
-    process.env.POSTGRES_PORT,
-);
-*/
+
+const myOrdersQueue = new Queue("myOrders", {
+    // Redis configuration
+    redis: {
+        host: process.env.REDIS_SERVER || "127.0.0.1",
+        port: process.env.REDIS_PORT || 6379,
+        password: process.env.REDIS_PASSWORD,
+    },
+});
+
+const myBalanceQueue = new Queue("myBalance", {
+    // Redis configuration
+    redis: {
+        host: process.env.REDIS_SERVER || "127.0.0.1",
+        port: process.env.REDIS_PORT || 6379,
+        password: process.env.REDIS_PASSWORD,
+    },
+});
+
 let currentConnections = {};
 (async () => {
     while (true) {
@@ -67,7 +74,7 @@ let currentConnections = {};
 
                         await exchange.loadMarkets();
 
-                        let res = watchMyTrades(exchange, undefined, async (trades) => {
+                        let tradeWatcher = watchMyTrades(exchange, undefined, (trades) => {
                             const options = {
                                 attempts: 0,
                                 removeOnComplete: true,
@@ -77,7 +84,10 @@ let currentConnections = {};
                             // send to redis
                             for (let i=0; i < trades.length; i++) {
                                 console.log(trades[i].toJson());
-                                myTradesQueue.add(trades[i].toJson(), options).then(ret => {
+                                myTradesQueue.add({
+                                    account: id,
+                                    trade: trades[i].toJson()
+                                }, options).then(ret => {
                                     console.log(ret);
                                 }). catch(err => {
                                     console.error(err);
@@ -85,18 +95,73 @@ let currentConnections = {};
                             }
                         });
 
+                        let orderWatcher = watchMyOrders(exchange, undefined, (orders) => {
+                            const options = {
+                                attempts: 0,
+                                removeOnComplete: true,
+                                removeOnFail: true,
+                            };
+
+                            // send to redis
+                            for (let i=0; i < orders.length; i++) {
+                                console.log(orders[i].toJson());
+                                myOrdersQueue.add({
+                                    account: id,
+                                    order: orders[i].toJson()
+                                }, options).then(ret => {
+                                    console.log(ret);
+                                }). catch(err => {
+                                    console.error(err);
+                                });
+                            }
+                        });
+
+                        let balanceWatcher = watchMyBalance(exchange, undefined, (balance) => {
+                            const options = {
+                                attempts: 0,
+                                removeOnComplete: true,
+                                removeOnFail: true,
+                            };
+
+                            // send to redis
+                            console.log(balance);
+                            myBalanceQueue.add({
+                                account: id,
+                                balance: balance
+                            }, options).then(ret => {
+                                console.log(ret);
+                            }). catch(err => {
+                                console.error(err);
+                            });
+                        });
+
                         currentConnections[id] = {
                             exchange,
-                            cancel: res.cancel,
+                            tradeWatcherCancel: tradeWatcher.cancel,
+                            orderWatcherCancel: orderWatcher.cancel,
+                            balanceWatcherCancel: balanceWatcher.cancel
                         };
 
-                        res.promise.then(res => {
+                        Promise.any([
+                            tradeWatcher.promise,
+                            orderWatcher.premise,
+                            balanceWatcher.premise,
+                        ]).then(res => {
                             console.log(`ws closed for account ${id} `)
+                            if (id in currentConnections){
+                                currentConnections[id].balanceWatcherCancel();
+                                currentConnections[id].tradeWatcherCancel();
+                                currentConnections[id].orderWatcherCancel();
+                                currentConnections[id].exchange.close().catch(e => { });
+                                delete currentConnections[id];
+                            }
                         }).catch(err => {
                             console.log(`ws closed for account ${id} with error`)
                             console.error(err);
                             if (id in currentConnections){
-                                currentConnections[id].cancel();
+                                currentConnections[id].balanceWatcherCancel();
+                                currentConnections[id].tradeWatcherCancel();
+                                currentConnections[id].orderWatcherCancel();
                                 currentConnections[id].exchange.close().catch(e => { });
                                 delete currentConnections[id];
                             }
@@ -110,7 +175,9 @@ let currentConnections = {};
                     let id = currentIds[i];
                     if (!lastIds.includes(id)) {
                         console.log("Removing unused client: " + id);
-                        currentConnections[id].cancel();
+                        currentConnections[id].balanceWatcherCancel();
+                        currentConnections[id].tradeWatcherCancel();
+                        currentConnections[id].orderWatcherCancel();
                         await currentConnections[id].exchange.close();
                         delete currentConnections[id];
                     }
