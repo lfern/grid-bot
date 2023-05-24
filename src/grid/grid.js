@@ -12,31 +12,30 @@ class GridManager {
      * @param {*} strategy 
      * @param {*} currentPrice 
      */
-    constructor(exchange, instanceId, strategy, currentPrice) {
+    constructor(exchange, instanceId, strategy) {
         this.exchange = exchange;
         this.instanceId = instanceId;
         this.strategy = strategy;
-        this.currentPrice = new BigNumber(currentPrice);
         this.currentPosition = new BigNumber(strategy.initial_position);
         this.step = new BigNumber(strategy.step);
         this.orderQty = new BigNumber(strategy.order_qty);
     }
 
-    createGridEntry(level, gridId, side, active) {
+    createGridEntry(level, gridId, side, active, currentPrice) {
         let symbol = this.strategy.symbol;
         let gridPrice;
         let diffPrice;
         
         if (this.strategy.step_type == 'percent') {
-            diffPrice = this.currentPrice.multipliedBy(level).multipliedBy(this.step).dividedBy(100);
+            diffPrice = currentPrice.multipliedBy(level).multipliedBy(this.step).dividedBy(100);
         } else {
             diffPrice = this.step.multipliedBy(level);
         }
 
         if (side == 'sell') {
-            gridPrice = this.currentPrice.plus(diffPrice);
+            gridPrice = currentPrice.plus(diffPrice);
         } else {
-            gridPrice = this.currentPrice.minus(diffPrice);
+            gridPrice = currentPrice.minus(diffPrice);
         }
 
         if (gridPrice <= 0) {
@@ -78,13 +77,15 @@ class GridManager {
         return newGridEntry;
     }
 
-    createGridEntries() {
+    createGridEntries(currentPrice) {
+        let currentPrice = new BigNumber(currentPrice);
         let entries = [];
         entries.push(this.createGridEntry(
             0,
             this.strategy.sell_orders + 1,
             'buy',
-            false
+            false,
+            currentPrice
         ));
 
         for (let i=0; i < this.strategy.sell_orders; i++) {
@@ -92,7 +93,8 @@ class GridManager {
                 i+1,
                 this.strategy.sell_orders - i,
                 'sell',
-                i < this.strategy.active_sells
+                i < this.strategy.active_sells,
+                currentPrice
             ));
         }
 
@@ -101,7 +103,8 @@ class GridManager {
                 i+1,
                 this.strategy.sell_orders + i + 2,
                 'buy',
-                i < this.strategy.active_buys
+                i < this.strategy.active_buys,
+                currentPrice
             ));
         }
         return entries;
