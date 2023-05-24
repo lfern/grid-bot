@@ -95,7 +95,7 @@ myTradesQueue.process(async (job, done) => {
                         timestamp: dataTrade.timestamp,
                         datetime: dataTrade.datetime,
                         price: dataTrade.price,
-                        amount: dataTrade.amoumt,
+                        amount: dataTrade.amount,
                         cost: dataTrade.cost,
                         fee_cost: dataTrade.feeCost ? dataTrade.feeCost : null,
                         fee_coin: dataTrade.feeCurrency ? dataTrade.feeCurrency : null,
