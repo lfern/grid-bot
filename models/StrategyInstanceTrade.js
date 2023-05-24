@@ -71,11 +71,11 @@ module.exports = (sequelize, DataTypes) => {
             type: DataTypes.DECIMAL(30, 15)
         },
         fee_cost: {
-            allowNull: false,
+            allowNull: true,
             type: DataTypes.DECIMAL(30, 15)
         },
         fee_coin: {
-            allowNull: false,
+            allowNull: true,
             type: DataTypes.STRING
         }
     }, {
