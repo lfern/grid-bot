@@ -6,6 +6,7 @@ const _ = require("lodash");
 const {BaseExchangeCcxtOrder} = require('./BaseExchangeCcxtOrder');
 const {BaseExchangeCcxtPosition} = require('./BaseExchangeCcxtPosition');
 const {BaseExchangeCcxtTrade} = require('./BaseExchangeCcxtTrade');
+const {overrides} = require('./override');
 
 /** @typedef {import('../BaseExchange').ExchangeOptions} ExchangeOptions */
 
@@ -39,8 +40,15 @@ class BaseExchangeCcxt extends BaseExchange {
             rateLimit: this.params.rateLimit,
         }, _.identity);;
 
-        /** @type {ccxt.Exchange} */
-        this.ccxtExchange = new ccxt.pro[exchangeName](ccxtOptions);
+        if (overrides.hasOwnProperty(exchangeName)) {
+            console.log(`${exchangeName} overrided with custom implementation`)
+            /** @type {ccxt.Exchange} */
+            this.ccxtExchange = new overrides[exchangeName](ccxtOptions);
+
+        } else {
+            /** @type {ccxt.Exchange} */
+            this.ccxtExchange = new ccxt.pro[exchangeName](ccxtOptions);
+        }
     }
 
     /** @inheritdoc */
