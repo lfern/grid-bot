@@ -72,7 +72,10 @@ class BaseExchangeCcxtTrade extends BaseExchangeTrade {
         return this.ccxtTrade;
     }
     
-
+    /** @inheritdoc */
+    static fromJson(json) {
+        return new BaseExchangeCcxtTrade(json);
+    }
 }
 
 module.exports = {BaseExchangeCcxtTrade}

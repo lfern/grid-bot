@@ -103,6 +103,11 @@ class BaseExchangeCcxtOrder extends BaseExchangeOrder {
      toJson() {
         return this.ccxtOrder;
     }
+
+    /** @inheritdoc */
+    static fromJson(json) {
+        return new BaseExchangeCcxtOrder(json);
+    }
 }
 
 
