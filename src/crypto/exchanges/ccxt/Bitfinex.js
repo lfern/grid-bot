@@ -13,8 +13,8 @@ class Bitfinex extends BaseExchangeCcxt {
     }
 
     /** @inheritdoc */
-    async loadMarkets(reload = false) {
-        let markets = await super.loadMarkets(reload);
+    async getMarkets() {
+        let markets = await super.getMarkets();
 
         if (this.params.paper) {
             return Object.fromEntries(Object.entries(markets).filter(([k,v]) => k.startsWith('TEST')));
