@@ -124,6 +124,16 @@ class BaseExchangeCcxt extends BaseExchange {
     }
 
     /** @inheritdoc */
+    getId() {
+        return this.ccxtExchange.id;
+    }
+
+    /** @inheritdoc */
+    async getMarkets() {
+        return await this.ccxtExchange.loadMarkets(reload);
+    }
+
+    /** @inheritdoc */
     async loadMarkets(reload = false) {
         return await this.ccxtExchange.loadMarkets(reload);
     }
@@ -140,12 +150,16 @@ class BaseExchangeCcxt extends BaseExchange {
 
     /** @inheritdoc */
     async initMarketsFrom(exchange) {
-        if (this.exchangeName != exchange.exchangeName &&
-            this.exchangeType != exchange.exchangeType) {
+        if (this.exchangeName != exchange.exchangeName) {
             throw new Exception("Exchange not compatible");
         }
 
         this.ccxtExchange.setMarkets(await exchange.ccxtExchange.loadMarkets());
+    }
+
+    /** @inheritdoc */
+    async initMarkets(markets) {
+        this.ccxtExchange.setMarkets(markets);
     }
 
     /** @inheritdoc */

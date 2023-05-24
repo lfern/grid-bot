@@ -113,6 +113,29 @@ class BaseExchange {
     }
 
     /**
+     * @returns {ExchangeOptions}
+     */
+    getExchangeParams() {
+        return this.params;
+    }
+
+    /**
+     * @returns {string}
+     */
+    getId() {
+        throw new Error("NOT IMPLEMENTED");
+    }
+
+    /**
+     * 
+     * @param {boolean} reload 
+     * @returns 
+     */
+    async getMarkets() {
+        throw new Error("NOT IMPLEMENTED");
+    }
+        
+    /**
      * 
      * @param {boolean} reload 
      * @returns 
@@ -120,7 +143,6 @@ class BaseExchange {
     async loadMarkets(reload = false) {
         throw new Error("NOT IMPLEMENTED");
     }
-    
     
     /**
      * Get market info
