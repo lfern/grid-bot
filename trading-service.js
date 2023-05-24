@@ -4,7 +4,7 @@ require('dotenv').config();
 //const {DbHelper} = require('./src/db/DbHelper');
 const {sleep} = require('./src/crypto/exchanges/utils/timeutils');
 const models = require('./models');
-const { exchangeInstance } = require('./src/crypto/exchanges/exchanges');
+const { exchangeInstanceWithMarkets } = require('./src/services/ExchangeMarket');
 const _ = require('lodash');
 const BigNumber = require('bignumber.js');
 const { GridManager } = require('./src/grid/grid');
@@ -63,7 +63,7 @@ myTradesQueue.process(async (job, done) => {
             
             if (order == null) {
                 // if not exist create in pending trades for account
-                const [order, created] = models.AccountPendingTrade.findOrCreate({
+                const [order, created] = await models.AccountPendingTrade.findOrCreate({
                     where: {
                         account_id: data.account,
                         symbol: dataTrade.symbol,
@@ -82,9 +82,9 @@ myTradesQueue.process(async (job, done) => {
                 });
             } else {
                 // order exists so create trade
-                models.StrategyInstanceTrade.findOrCreate({
+                await models.StrategyInstanceTrade.findOrCreate({
                     where: {
-                        strategy_order_id: order.id,
+                        strategy_instance_order_id: order.id,
                         symbol: dataTrade.symbol,
                         exchange_trade_id: dataTrade.id,    
                     },
@@ -97,8 +97,8 @@ myTradesQueue.process(async (job, done) => {
                         price: dataTrade.price,
                         amount: dataTrade.amoumt,
                         cost: dataTrade.cost,
-                        fee_cost: dataTrade.fee.cost,
-                        fee_coin: dataTrade.fee.coin,
+                        fee_cost: dataTrade.feeCost ? dataTrade.feeCost : null,
+                        fee_coin: dataTrade.feeCurrency ? dataTrade.feeCurrency : null,
                     },
                     transaction
                 });
@@ -119,6 +119,7 @@ myOrdersQueue.process(async (job, done) => {
     let dataOrder = BaseExchangeCcxtOrder.fromJson(data.order);
     console.log(data);
     let gridUpdate = false;
+    let orderInstance = null;
     try {
         await models.sequelize.transaction(async transaction => {
             // check if order exists in db
@@ -134,11 +135,11 @@ myOrdersQueue.process(async (job, done) => {
             
             if (order == null) {
                 // if not exist create in pending orders for account
-                const [order, created] = models.AccountPendingOrder.findOrCreate({
+                const [order, created] = await models.AccountPendingOrder.findOrCreate({
                     where: {
                         account_id: data.account,
                         symbol: dataOrder.symbol,
-                        exchange_order_id: dataOrder.id    
+                        order_id: dataOrder.id    
                     },
                     defaults: {
                         account_id: data.account,
@@ -160,13 +161,14 @@ myOrdersQueue.process(async (job, done) => {
                         'closed': ['open', ],
                     };
                     let dbOrder = BaseExchangeCcxtOrder.fromJson(order.order);
-                    if (dbOrder.order.status == 'open') {
+                    if (dbOrder.status == 'open') {
                         order.order = dataOrder.toJson();
                         order.timestamp = models.Sequelize.fn('NOW');
                         await order.save({transaction});
                     }
                 }
             } else {
+                orderInstance = order.strategy_instance_id;
                 // already exists, update if necesary
                 if (order.status == 'open') {
                     order.timestamp = dataOrder.timestamp;
@@ -178,7 +180,9 @@ myOrdersQueue.process(async (job, done) => {
                     order.average = dataOrder.average;
                     order.filled = dataOrder.filled;
                     order.remaining = dataOrder.remaining;
+                    console.log(order.id)
                     await order.save({transaction});
+                    console.log(order.id)
                     gridUpdate = true;
                 }
                 // if closed update grid
@@ -187,6 +191,44 @@ myOrdersQueue.process(async (job, done) => {
         });
 
         if (gridUpdate) {
+            const strategyInstance = await models.StrategyInstance.findOne({
+                where: {
+                    id: orderInstance,
+                    running: true,
+                    stop_requested_at: { [models.Sequelize.Op.is]: null }
+                },
+                include: [
+                    {
+                        association: models.StrategyInstance.Strategy,
+                        include: [
+                            {
+                                association: models.Strategy.Account,
+                                include: [
+                                    models.Account.Exchange,
+                                    models.Account.AccountType
+                                ]
+                            }
+                        ]
+                    }
+                ]
+            });
+
+            if (strategyInstance == null) {
+                console.log(`${orderInstance} instance for account ${data.account} not found or not running`);
+            } else {
+                // create exchange
+                let account = strategyInstance.strategy.account;
+                const exchange = await exchangeInstanceWithMarkets(account.exchange.exchange_name, {
+                    exchangeType: account.account_type.account_type,
+                    paper: account.paper,
+                    rateLimit: 1000,  // testing 1 second though it is not recommended (I think we should not send too many requests/second)
+                    apiKey: account.api_key,
+                    secret: account.api_secret,
+                });
+
+                let gridCreator = new GridManager(exchange, strategyInstance.id, strategyInstance.strategy)
+                gridCreator.handleOrder(dataOrder);
+            }
             // search order id in grid
             // if it is a buy
         }
@@ -262,8 +304,9 @@ async function startGrids(isCancelled) {
             instance.save();
 
             // create exchange
-            const exchange = exchangeInstance(account.exchange.exchange_name, {
+            const exchange = await exchangeInstanceWithMarkets(account.exchange.exchange_name, {
                 exchangeType: account.account_type.account_type,
+                paper: account.paper,
                 rateLimit: 1000,  // testing 1 second though it is not recommended (I think we should not send too many requests/second)
                 apiKey: account.api_key,
                 secret: account.api_secret,
@@ -322,8 +365,9 @@ async function stopGrids(isCancelled) {
         instance.save();
 
         // create exchange
-        const exchange = exchangeInstance(account.exchange.exchange_name, {
+        const exchange = await exchangeInstanceWithMarkets(account.exchange.exchange_name, {
             exchangeType: account.account_type.account_type,
+            paper: account.paper,
             rateLimit: 1000,  // testing 1 second though it is not recommended (I think we should not send too many requests/second)
             apiKey: account.api_key,
             secret: account.api_secret,
