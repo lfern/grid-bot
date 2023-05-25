@@ -1,6 +1,8 @@
 const { BigNumber } = require("bignumber.js");
 const _ = require('lodash');
 const models = require('../../models');
+const { InstanceAccountRepository } = require("../../repository/InstanceAccountingRepository");
+const { PendingAccountRepository } = require("../../repository/PendingAccountRepository");
 
 /** @typedef {import('../crypto/exchanges/BaseExchange').BaseExchange} BaseExchange */
 /** @typedef {import('../crypto/exchanges/BaseExchangeOrder').BaseExchangeOrder} BaseExchangeOrder */
@@ -20,9 +22,11 @@ class GridManager {
         this.currentPosition = new BigNumber(strategy.initial_position);
         this.step = new BigNumber(strategy.step);
         this.orderQty = new BigNumber(strategy.order_qty);
+        this.instanceAccRepository = new InstanceAccountRepository();
+        this.pendingAccountRepository = new PendingAccountRepository();
     }
 
-    createGridEntry(level, gridId, side, active, currentPrice) {
+    _createGridEntry(level, gridId, side, active, currentPrice) {
         let symbol = this.strategy.symbol;
         let gridPrice;
         let diffPrice;
@@ -81,7 +85,7 @@ class GridManager {
     createGridEntries(currentPrice) {
         let currentPriceBig = new BigNumber(currentPrice);
         let entries = [];
-        entries.push(this.createGridEntry(
+        entries.push(this._createGridEntry(
             0,
             this.strategy.sell_orders + 1,
             'buy',
@@ -90,7 +94,7 @@ class GridManager {
         ));
 
         for (let i=0; i < this.strategy.sell_orders; i++) {
-            entries.push(this.createGridEntry(
+            entries.push(this._createGridEntry(
                 i+1,
                 this.strategy.sell_orders - i,
                 'sell',
@@ -100,7 +104,7 @@ class GridManager {
         }
 
         for (let i=0; i < this.strategy.buy_orders; i++) {
-            entries.push(this.createGridEntry(
+            entries.push(this._createGridEntry(
                 i+1,
                 this.strategy.sell_orders + i + 2,
                 'buy',
@@ -111,9 +115,15 @@ class GridManager {
         return entries;
     }
 
-    async createInitialOrders(gridEntries) {
-        let sells = gridEntries.filter(entry => entry.side == 'sell').sort((a,b) => a.price < a.price ? 1 : (a.price > a.price ? -1 : 0));
-        let buys = gridEntries.filter(entry => entry.side == 'buy').sort((a,b) => a.price > a.price ? 1 : (a.price < a.price ? -1 : 0));
+    async cancelOrders(orders) {
+        for (let i=0;i<orders.length;i++) {
+            await this.exchange.cancelOrder(orders[i],this.strategy.symbol);
+        }
+    }
+
+    async createOrders(gridEntries) {
+        let sells = gridEntries.filter(entry => entry.exchange_order_id == null && entry.active === false && entry.side == 'sell').sort((a,b) => a.price < a.price ? 1 : (a.price > a.price ? -1 : 0));
+        let buys = gridEntries.filter(entry => entry.exchange_order_id == null && entry.active === false && entry.side == 'buy').sort((a,b) => a.price > a.price ? 1 : (a.price < a.price ? -1 : 0));
         let orders = _.compact(_.flatten(_.zip(sells, buys)));
 
         for (let i=0;i<orders.length;i++) {
@@ -125,114 +135,222 @@ class GridManager {
                 gridOrder.order_qty,
                 gridOrder.price
             );
-            // check if any order is executed
-            let result = await models.StrategyInstanceGrid.update({
-                active: true,
-                exchange_order_id: order.id,
-            }, {
-                where: {
-                    strategy_instance_id: this.instanceId,
-                    active: false,
-                    side: gridOrder.side,
-                    buy_order_id: gridOrder.buy_order_id
-                },
-            });
-            console.log(result);
-            console.log(order);
+            
+            models.sequelize.transaction(async (transaction)=> {
+                let result = await models.StrategyInstanceGrid.update({
+                    active: true,
+                    exchange_order_id: order.id,
+                }, {
+                    where: {
+                        strategy_instance_id: this.instanceId,
+                        active: false,
+                        side: gridOrder.side,
+                        buy_order_id: gridOrder.buy_order_id
+                    },
+                    transaction
+                });
 
-            await models.StrategyInstanceOrder.create({
-                strategy_instance_id: this.instanceId,
-                account_id: this.strategy.account_id,
-                exchange_order_id: order.id,
-                symbol: order.symbol,
-                order_type: order.type,
-                side: order.side,
-                timestamp: order.timestamp,
-                datetime: order.datetime,
-                status: order.status,
-                price: order.price,
-                amount: order.amount,
-                cost: order.cost,
-                average: order.average,
-                filled: order.filled,
-                remaining: order.remaining,
-            })
+                await this.instanceAccRepository.createOrder(
+                    this.instanceId,
+                    this.strategy.account.id,
+                    order,
+                    transaction);
+
+            });
         }
     }
 
     /**
-     * 
+     * @param {string} account
      * @param {BaseExchangeOrder} order 
      */
-    async handleOrder(order) {
+    async handleOrder(account, order) {
 
-        if (order.status == 'closed') {
+        // Only process closed orders for now
+        if (order.status != 'closed') {
+            await this.instanceAccRepository.updateOrder(this.strategy.account.id, order);
+            return;
+        }
 
-            await models.sequelize.transaction(async transaction => {
-                // check if order exists in db
-                let gridEntry = await models.StrategyInstanceGrid.findOne({
-                    where: {
-                        strategy_instance_id: this.instanceId,
-                        exchange_order_id: order.id,
-                    },
-                    lock: transaction.LOCK.UPDATE,
-                    transaction
-                });
+        // Block grid
+        let [gridEntries, canceledOrders, delayed] = await this._tryModifyGrid(order);
+        // if delayed save pending
+        if (delayed) {
+            console.error(`Delaying order ${order.id}`);
+            await this.pendingAccountRepository.addOrder(account, order, true);
+            console.error(`After Delaying order ${order.id}`);
+        } else {
+            await this.createOrders(gridEntries);
+            await this.cancelOrders(canceledOrders);
+            await this.instanceAccRepository.updateOrder(this.strategy.account.id, order);
+        }
 
-                if (gridEntry == null) {
-                    console.log(`Grid entry not found for order ${order.id} for instance ${this.instanceId}`);
-                    return;
+    }
+    
+    async _tryModifyGrid(order) {
+        let gridEntriesRaw = [];
+        let canceledOrders = [];
+        let delayed = false;
+        await models.sequelize.transaction(async transaction => {
+            // get all grid entries orderes by buy id
+            let gridEntries = await models.StrategyInstanceGrid.findAll({
+                where: {
+                    strategy_instance_id: this.instanceId,
+                },
+                lock: transaction.LOCK.UPDATE,
+                transaction,
+                order: [
+                    ['buy_order_id', 'ASC'],
+                ]
+            });
+            // check grid data
+            let indexOrder = -1;
+            let allActives = true;
+            let indexHigherBuy = -1;
+            let indexLowerSell = -1;
+            gridEntries.forEach((entry, index) => {
+                if (entry.exchange_order_id == order.id) {
+                    indexOrder = index;
                 }
 
-                let newSide;
-                let newGridId;
-                let newPosition;
-                let newGridWhere;
-                if (gridEntry.side == 'sell') {
-                    newSide = 'buy';
-                    newGridId = gridEntry.sell_order_id;
-                    newPosition = new BigNumber(gridEntry.position_before_order).plus(new BigNumber(gridEntry.order_qty));
-                    newGridWhere = {
-                        strategy_instance_id: this.instanceId,
-                        buy_order_id: gridEntry.sell_order_id
-                    };
-                } else {
-                    newSide = 'sell';
-                    newGridId = gridEntry.buy_order_id
-                    newPosition = new BigNumber(gridEntry.position_before_order).minus(new BigNumber(gridEntry.order_qty));
-                    newGridWhere = {
-                        strategy_instance_id: this.instanceId,
-                        sell_order_id: gridEntry.buy_order_id
-                    };
-
-                }
-                let newGridEntry = await models.StrategyInstanceGrid.findOne({
-                    where: newGridWhere,
-                    lock: transaction.LOCK.UPDATE,
-                    transaction
-                });
-
-                if (newGridEntry == null) {
-                    console.log(`No new ${newSide} grid entry for grid id ${newGridId}`);
-                    return;
+                if (indexHigherBuy == -1 && entry.side == 'buy') {
+                    indexHigherBuy = index;
                 }
 
-                newGridEntry.position_before_order = this.exchange.amountToPrecision(this.strategy.symbol, newPosition.toFixed());
-                newGridEntry.order_qty = this.exchange.priceToPrecision(this.strategy.symbol, newSide ==  'buy' ? newGridEntry.buy_order_qty : newGridEntry.sell_order_qty);
-                newGridEntry.side = newSide;
-                newGridEntry.active = false;
-                newGridEntry.exchange_order_id = null;
-                await newGridEntry.save({transaction});
+                if (entry.side == 'sell') {
+                    indexLowerSell = index;
+                }
 
-                gridEntry.position_before_order = null;
-                gridEntry.order_qty = null;
-                gridEntry.side = null;
-                gridEntry.active = null;
-                gridEntry.exchange_order_id = null;
-                await gridEntry.save({transaction});
+                if (entry.side != null) {
+                    allActives = allActives && entry.active;
+                }
 
             });
+
+            // If grid is updating or order not in grid now, stop
+            if (!allActives || indexOrder == -1) {
+                delayed = !allActives;
+                return;
+            }
+
+            if (order.side == 'buy') {
+                if (indexHigherBuy != indexOrder) {
+                    delayed = true;
+                    console.error("buy order executed is not the higher buy in ther grid???");
+                    return;
+                }
+                for(let i=indexHigherBuy; i <= indexOrder; i++) {
+                    this._removeIndexFromGrid(gridEntries, i, canceledOrders);
+                }
+            } else {
+                if (indexLowerSell != indexOrder) {
+                    delayed = true;
+                    console.error("sell order executed is not the lower sell in ther grid???");
+                    return;
+                }
+                for(let i=indexLowerSell; i >= indexOrder; i--) {
+                    this._removeIndexFromGrid(gridEntries, i, canceledOrders);
+                }
+            }
+
+            for(let i=0;i<gridEntries.length;i++) {
+                if (gridEntries[i].changed()) {
+                    await gridEntries[i].save({transaction});
+                }
+            }
+            gridEntriesRaw = gridEntries.map(x => x.get({ plain: true }));
+            gridEntriesRaw.forEach(entry => {
+                console.log(`${entry.buy_order_id}\t${entry.position_before_order}\t${entry.side}\t${entry.active}\t${entry.exchange_order_id}`);
+            })
+        });
+        
+        return [gridEntriesRaw, canceledOrders, delayed];
+    }
+
+    _removeIndexFromGrid(gridEntries, index, canceledOrders) {
+        let executedEntry = gridEntries[index];
+        let srcSide = executedEntry.side;
+        let dstSide;
+        let signIndex;
+        let activeOrders;
+        if (srcSide == 'buy') {
+            dstSide = 'sell';
+            signIndex = -1;
+            activeOrders = this.strategy.active_sells;
+        } else {
+            dstSide = 'buy';
+            signIndex = 1;
+            activeOrders = this.strategy.active_buys;    
         }
+        // insert other side entry
+        let otherSideIndex = index + signIndex;
+        if (otherSideIndex >= 0 && otherSideIndex < gridEntries.length) {
+            this._createNextSideGridEntry(gridEntries[index], gridEntries[otherSideIndex], dstSide);
+        }
+        // insert +nth buy if posible
+        let indexSideToAdd = index + activeOrders * (-signIndex);
+        let indexSideFrom = indexSideToAdd + signIndex;
+        if (indexSideToAdd >= 0 && indexSideToAdd < gridEntries.length &&
+            indexSideFrom >= 0 && indexSideFrom < gridEntries.length) {
+            this._createNextSideGridEntry(gridEntries[indexSideFrom], gridEntries[indexSideToAdd], srcSide);
+        }
+        // remove buy at index
+        this._resetGridEntry(executedEntry);
+        // remove -nth sell above if posible
+        let indexSideToRemove = index + (activeOrders+1) * signIndex;
+        if (indexSideToRemove >= 0 && indexSideToRemove < gridEntries.length) {
+            const toRemoveEntry = gridEntries[indexSideToRemove];
+            if (toRemoveEntry.exchange_order_id != null) {
+                canceledOrders.push(toRemoveEntry.exchange_order_id);
+            } else {
+                console.error("Error last sell doesn't have order id");
+            }
+            this._resetGridEntry(toRemoveEntry);
+        }
+    }
+
+    _createNextSideGridEntry(srcEntry, dstEntry, dstSide) {
+        let lastPosition = new BigNumber(srcEntry.position_before_order);
+        let lastOrderQty = new BigNumber(srcEntry.order_qty);
+        if (srcEntry.side == 'buy') {
+            dstEntry.position_before_order = this.exchange.amountToPrecision(
+                this.strategy.symbol,
+                lastPosition.plus(lastOrderQty).toFixed()
+            );
+        } else {
+            dstEntry.position_before_order = this.exchange.amountToPrecision(
+                this.strategy.symbol,
+                lastPosition.minus(lastOrderQty).toFixed()
+            );
+        }
+
+        if (dstSide == 'sell') {
+            dstEntry.order_qty = this.exchange.priceToPrecision(
+                this.strategy.symbol,
+                dstEntry.sell_order_qty
+            );
+
+            dstEntry.side = dstSide;
+            dstEntry.active = false;
+            dstEntry.exchange_order_id = null;
+        } else {
+            dstEntry.order_qty = this.exchange.priceToPrecision(
+                this.strategy.symbol,
+                dstEntry.buy_order_qty
+            );
+
+            dstEntry.side = dstSide;
+            dstEntry.active = false;
+            dstEntry.exchange_order_id = null;
+        }
+    }
+
+    _resetGridEntry(entry) {
+        entry.position_before_order = null;
+        entry.order_qty = null;
+        entry.side = null;
+        entry.active = null;
+        entry.exchange_order_id = null;
     }
 }
 

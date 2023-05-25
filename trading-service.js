@@ -10,6 +10,9 @@ const BigNumber = require('bignumber.js');
 const { GridManager } = require('./src/grid/grid');
 const { BaseExchangeCcxtTrade } = require('./src/crypto/exchanges/ccxt/BaseExchangeCcxtTrade');
 const { BaseExchangeCcxtOrder } = require('./src/crypto/exchanges/ccxt/BaseExchangeCcxtOrder');
+const { PendingAccountRepository } = require('./repository/PendingAccountRepository');
+const { InstanceAccountRepository } = require('./repository/InstanceAccountingRepository');
+const { orderHandler } = require('./src/grid/redis-events');
 
 /** @typedef {import('./src/grid/exchange-events').TradeDataEvent} TradeDataEvent */
 /** @typedef {import('./src/grid/exchange-events').OrderDataEvent} OrderDataEvent */
@@ -49,61 +52,8 @@ myTradesQueue.process(async (job, done) => {
     let dataTrade = BaseExchangeCcxtTrade.fromJson(data.trade);
     console.log(data);
     try {
-        await models.sequelize.transaction(async transaction => {
-            // check if order exists in db
-            let order = await models.StrategyInstanceOrder.findOne({
-                where: {
-                    account_id: data.account,
-                    symbol: dataTrade.symbol,
-                    exchange_order_id: dataTrade.order
-                },
-                lock: transaction.LOCK.UPDATE,
-                transaction
-            });
-            
-            if (order == null) {
-                // if not exist create in pending trades for account
-                const [order, created] = await models.AccountPendingTrade.findOrCreate({
-                    where: {
-                        account_id: data.account,
-                        symbol: dataTrade.symbol,
-                        order_id: dataTrade.order    
-                    },
-                    defaults: {
-                        account_id: data.account,
-                        trade: dataTrade.toJson(),
-                        timestamp: models.Sequelize.fn('NOW'),
-                        trade_id: dataTrade.id,
-                        order_id: dataTrade.order,
-                        symbol: dataTrade.symbol,
-                    },
-                    lock: transaction.LOCK.UPDATE, 
-                    transaction
-                });
-            } else {
-                // order exists so create trade
-                await models.StrategyInstanceTrade.findOrCreate({
-                    where: {
-                        strategy_instance_order_id: order.id,
-                        symbol: dataTrade.symbol,
-                        exchange_trade_id: dataTrade.id,    
-                    },
-                    defaults: {
-                        account_id: order.account_id,
-                        symbol: order.symbol,
-                        exchange_trade_id: dataTrade.id,
-                        timestamp: dataTrade.timestamp,
-                        datetime: dataTrade.datetime,
-                        price: dataTrade.price,
-                        amount: dataTrade.amount,
-                        cost: dataTrade.cost,
-                        fee_cost: dataTrade.feeCost ? dataTrade.feeCost : null,
-                        fee_coin: dataTrade.feeCurrency ? dataTrade.feeCurrency : null,
-                    },
-                    transaction
-                });
-            }
-        });
+        let instanceAccountRepository = new InstanceAccountRepository();
+        instanceAccountRepository.createTrade(data.account, dataTrade);
         // TODO: check if all trades has completed the order ?
     } catch (ex) {
         console.error(ex);
@@ -118,120 +68,9 @@ myOrdersQueue.process(async (job, done) => {
     let data = job.data;
     let dataOrder = BaseExchangeCcxtOrder.fromJson(data.order);
     console.log(data);
-    let gridUpdate = false;
-    let orderInstance = null;
+
     try {
-        await models.sequelize.transaction(async transaction => {
-            // check if order exists in db
-            let order = await models.StrategyInstanceOrder.findOne({
-                where: {
-                    account_id: data.account,
-                    symbol: dataOrder.symbol,
-                    exchange_order_id: dataOrder.id
-                },
-                lock: transaction.LOCK.UPDATE,
-                transaction
-            });
-            
-            if (order == null) {
-                // if not exist create in pending orders for account
-                const [order, created] = await models.AccountPendingOrder.findOrCreate({
-                    where: {
-                        account_id: data.account,
-                        symbol: dataOrder.symbol,
-                        order_id: dataOrder.id    
-                    },
-                    defaults: {
-                        account_id: data.account,
-                        order: dataOrder.toJson(),
-                        timestamp: models.Sequelize.fn('NOW'),
-                        order_id: dataOrder.id,
-                        symbol: dataOrder.symbol,
-                    },
-                    lock: transaction.LOCK.UPDATE, 
-                    transaction
-                });
-
-                if (!created) {
-                    let orderStatusesPreceding = {
-                        'open' : [],
-                        'canceled': ['open'],
-                        'rejected': ['open'],
-                        'expired': ['open'],
-                        'closed': ['open', ],
-                    };
-                    let dbOrder = BaseExchangeCcxtOrder.fromJson(order.order);
-                    if (dbOrder.status == 'open') {
-                        order.order = dataOrder.toJson();
-                        order.timestamp = models.Sequelize.fn('NOW');
-                        await order.save({transaction});
-                    }
-                }
-            } else {
-                orderInstance = order.strategy_instance_id;
-                // already exists, update if necesary
-                if (order.status == 'open') {
-                    order.timestamp = dataOrder.timestamp;
-                    order.datetime = dataOrder.datetime;
-                    order.status = dataOrder.status;
-                    order.price = dataOrder.price;
-                    order.amount = dataOrder.amount;
-                    order.cost = dataOrder.cost;
-                    order.average = dataOrder.average;
-                    order.filled = dataOrder.filled;
-                    order.remaining = dataOrder.remaining;
-                    console.log(order.id)
-                    await order.save({transaction});
-                    console.log(order.id)
-                    gridUpdate = true;
-                }
-                // if closed update grid
-                // if not closed nor open, event
-            }
-        });
-
-        if (gridUpdate) {
-            const strategyInstance = await models.StrategyInstance.findOne({
-                where: {
-                    id: orderInstance,
-                    running: true,
-                    stop_requested_at: { [models.Sequelize.Op.is]: null }
-                },
-                include: [
-                    {
-                        association: models.StrategyInstance.Strategy,
-                        include: [
-                            {
-                                association: models.Strategy.Account,
-                                include: [
-                                    models.Account.Exchange,
-                                    models.Account.AccountType
-                                ]
-                            }
-                        ]
-                    }
-                ]
-            });
-
-            if (strategyInstance == null) {
-                console.log(`${orderInstance} instance for account ${data.account} not found or not running`);
-            } else {
-                // create exchange
-                let account = strategyInstance.strategy.account;
-                const exchange = await exchangeInstanceWithMarkets(account.exchange.exchange_name, {
-                    exchangeType: account.account_type.account_type,
-                    paper: account.paper,
-                    rateLimit: 1000,  // testing 1 second though it is not recommended (I think we should not send too many requests/second)
-                    apiKey: account.api_key,
-                    secret: account.api_secret,
-                });
-
-                let gridCreator = new GridManager(exchange, strategyInstance.id, strategyInstance.strategy)
-                gridCreator.handleOrder(dataOrder);
-            }
-            // search order id in grid
-            // if it is a buy
-        }
+        await orderHandler(data.account, dataOrder);
     } catch (ex) {
         console.error(ex);
     }
@@ -265,42 +104,181 @@ const startStopProcess = cancelablePromise(async (resolve, reject, signal) => {
     }   
 });
 
+const recoverPendingTrades = cancelablePromise( async (resolve, reject, signal) => {
+    let cancelled = false;
+
+    signal.catch(err => {
+        cancelled = true;
+    });
+
+    let pendingAccountRepository = new PendingAccountRepository();
+    const options = {
+        attempts: 0,
+        removeOnComplete: true,
+        removeOnFail: true,
+    };
+
+    while(!cancelled) {
+        try {
+            let rows = 0;
+            
+            // TODO: remove very old not found orders (not pending)
+            await models.sequelize.transaction(async (transaction) =>{
+                let dbOrders = await pendingAccountRepository.getOldestOrders(10, true, transaction);
+                rows = dbOrders.length;
+                if (rows == 0) {
+                    return;
+                }
+
+                console.log(`Recover ${rows} pending orders ....`);
+
+                for(let i=0; i<rows; i++) {
+                    let dbOrder = dbOrders[i];
+                    console.log(`account: ${dbOrder.account_id} ${dbOrder.order_id}`);
+                    myOrdersQueue.add({
+                        account: dbOrder.account_id,
+                        order: dbOrder.order,
+                        recovered: true,
+                    }, options).then(ret => {
+                        // console.log(ret);
+                    }). catch(err => {
+                        console.error(err);
+                    });
+    
+                    await dbOrder.destroy({transaction})
+                }
+            })
+
+            if (rows == 0) {
+                await sleep(5000);
+                continue;
+            }
+
+        } catch (ex) {
+            console.log(ex);
+            await sleep(5000);
+        }
+        
+    }
+});
+
 startStopProcess.promise
-    .then( res => console.log(res))
-    .catch(ex => console.error(ex));
+    .then( res => {
+        recoverPendingTrades.cancel();
+    })
+    .catch(ex => {
+        console.error(ex)
+        recoverPendingTrades.cancel();
+    });
+
+recoverPendingTrades.promise
+    .then(res => {
+        startStopProcess.cancel();
+    }).catch(ex => {
+        console.error(ex);
+        startStopProcess.cancel();
+    });
 
 async function startGrids(isCancelled) {
     if (isCancelled()) return;
 
-    const instances = await models.StrategyInstance.findAll({
-        where: {
-            running: true,
-            started_at: { [models.Sequelize.Op.is]: null },
-            stop_requested_at: { [models.Sequelize.Op.is]: null }
-        },
-        include: [
-            {
-                association: models.StrategyInstance.Strategy,
-                include: [
-                    {
-                        association: models.Strategy.Account,
-                        include: [
-                            models.Account.Exchange,
-                            models.Account.AccountType
-                        ]
-                    }
-                ]
-            }
-        ]
-    });
+    try {
 
-    for (let i=0; i<instances.length && !isCancelled(); i++) {
-        try {
+        const instances = await models.StrategyInstance.findAll({
+            where: {
+                running: true,
+                started_at: { [models.Sequelize.Op.is]: null },
+                stop_requested_at: { [models.Sequelize.Op.is]: null }
+            },
+            include: [
+                {
+                    association: models.StrategyInstance.Strategy,
+                    include: [
+                        {
+                            association: models.Strategy.Account,
+                            include: [
+                                models.Account.Exchange,
+                                models.Account.AccountType
+                            ]
+                        }
+                    ]
+                }
+            ]
+        });
+
+        for (let i=0; i<instances.length && !isCancelled(); i++) {
+            try {
+                let instance = instances[i];
+                let strategy = instance.strategy;
+                let account = strategy.account;
+
+                instance.started_at = models.Sequelize.fn('NOW');
+                instance.save();
+
+                // create exchange
+                const exchange = await exchangeInstanceWithMarkets(account.exchange.exchange_name, {
+                    exchangeType: account.account_type.account_type,
+                    paper: account.paper,
+                    rateLimit: 1000,  // testing 1 second though it is not recommended (I think we should not send too many requests/second)
+                    apiKey: account.api_key,
+                    secret: account.api_secret,
+                });
+
+                // Create grid in db
+                let currentPrice = await exchange.fetchCurrentPrice(strategy.symbol);
+                if (currentPrice == null) {
+                    console.error("Could not get current price from exchange")
+                    continue;
+                }
+
+                let gridCreator = new GridManager(exchange, instance.id, strategy)
+                let entries = gridCreator.createGridEntries(currentPrice);
+                for (let i=0;i<entries.length;i++) {
+                    models.StrategyInstanceGrid.create(entries[i]);
+                }
+                await gridCreator.createOrders(entries);
+
+            } catch (ex) {
+                console.error(ex);
+            }
+        }
+    } catch (ex){
+        console.error(ex);
+    }
+}
+
+async function stopGrids(isCancelled) {
+    if (isCancelled()) return;
+
+    try {
+        const instances = await models.StrategyInstance.findAll({
+            where: {
+                stopped_at: { [models.Sequelize.Op.is]: null },
+                stop_requested_at: { [models.Sequelize.Op.not]: null }
+            },
+            include: [
+                {
+                    association: models.StrategyInstance.Strategy,
+                    include: [
+                        {
+                            association: models.Strategy.Account,
+                            include: [
+                                models.Account.Exchange,
+                                models.Account.AccountType
+                            ]
+                        }
+                    ]
+                }
+            ]
+        });
+
+        for (let i=0; i<instances.length && !isCancelled(); i++) {
             let instance = instances[i];
             let strategy = instance.strategy;
             let account = strategy.account;
 
-            instance.started_at = models.Sequelize.fn('NOW');
+            instance.running = false;
+            instance.stopped_at = models.Sequelize.fn('NOW');
             instance.save();
 
             // create exchange
@@ -311,86 +289,28 @@ async function startGrids(isCancelled) {
                 apiKey: account.api_key,
                 secret: account.api_secret,
             });
-
-            // Create grid in db
-            let currentPrice = await exchange.fetchCurrentPrice(strategy.symbol);
-            if (currentPrice == null) {
-                console.error("Could not get current price from exchange")
-                continue;
-            }
-
-            let gridCreator = new GridManager(exchange, instance.id, strategy)
-            let entries = gridCreator.createGridEntries(currentPrice);
-            for (let i=0;i<entries.length;i++) {
-                models.StrategyInstanceGrid.create(entries[i]);
-            }
-            gridCreator.createInitialOrders(entries);
-        } catch (ex) {
-            console.error(ex);
-        }
-    }
-}
-
-async function stopGrids(isCancelled) {
-    if (isCancelled()) return;
-
-    const instances = await models.StrategyInstance.findAll({
-        where: {
-            stopped_at: { [models.Sequelize.Op.is]: null },
-            stop_requested_at: { [models.Sequelize.Op.not]: null }
-        },
-        include: [
-            {
-                association: models.StrategyInstance.Strategy,
-                include: [
-                    {
-                        association: models.Strategy.Account,
-                        include: [
-                            models.Account.Exchange,
-                            models.Account.AccountType
-                        ]
-                    }
-                ]
-            }
-        ]
-    });
-
-    for (let i=0; i<instances.length && !isCancelled(); i++) {
-        let instance = instances[i];
-        let strategy = instance.strategy;
-        let account = strategy.account;
-
-        instance.running = false;
-        instance.stopped_at = models.Sequelize.fn('NOW');
-        instance.save();
-
-        // create exchange
-        const exchange = await exchangeInstanceWithMarkets(account.exchange.exchange_name, {
-            exchangeType: account.account_type.account_type,
-            paper: account.paper,
-            rateLimit: 1000,  // testing 1 second though it is not recommended (I think we should not send too many requests/second)
-            apiKey: account.api_key,
-            secret: account.api_secret,
-        });
-        try {
-            let position = await getPosition(exchange, strategy.symbol, account.account_type.account_type);
-            let currentPrice = await exchange.fetchCurrentPrice(strategy.symbol);
-            // stop grid in db
-            models.StrategyInstanceEvent.create({
-                strategy_instance_id: instance.id,
-                event: 'GridStop',
-                message: 'Grid stopped',
-                params: {
+            try {
+                let position = await getPosition(exchange, strategy.symbol, account.account_type.account_type);
+                let currentPrice = await exchange.fetchCurrentPrice(strategy.symbol);
+                // stop grid in db
+                models.StrategyInstanceEvent.create({
+                    strategy_instance_id: instance.id,
+                    event: 'GridStop',
+                    message: 'Grid stopped',
+                    params: {
+                        price: currentPrice,
+                        position: position,
+                    },
                     price: currentPrice,
                     position: position,
-                },
-                price: currentPrice,
-                position: position,
-            });
-            // TODO: cancel orders?
-        } catch (ex) {
-            console.error(ex);
+                });
+                // TODO: cancel orders?
+            } catch (ex) {
+                console.error(ex);
+            }
         }
+    } catch (ex) {
+        console.error(ex);
     }
 }
 
