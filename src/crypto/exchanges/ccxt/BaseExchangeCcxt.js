@@ -58,7 +58,7 @@ class BaseExchangeCcxt extends BaseExchange {
 
     /** @inheritdoc */
     async cancelOrder(id, symbol = null) {
-        return await this.ccxtExchange.cancelOrder(is, symbol);
+        return await this.ccxtExchange.cancelOrder(id, symbol);
     }
     
     /** @inheritdoc */
