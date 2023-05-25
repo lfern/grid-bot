@@ -64,7 +64,6 @@ const getExchangeMarkets = async function(exchangeId, accountTypeId, paper) {
  */
 const initializeExchangeMarkets = async function(exchange) {
     let props = exchange.getExchangeParams();
-    console.log("adter get exchange params")
     let markets = await getExchangeMarkets(
         exchange.getId(), 
         props.exchangeType,
