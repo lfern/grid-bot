@@ -46,6 +46,10 @@ module.exports = (sequelize, DataTypes) => {
             allowNull: false,
             type: DataTypes.STRING,
         },
+        delayed: {
+            allowNull: false,
+            type: DataTypes.BOOLEAN
+        }
 
     }, {
         tableName: 'account_pending_orders'

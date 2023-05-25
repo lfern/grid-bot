@@ -58,6 +58,14 @@ module.exports = (sequelize, DataTypes) => {
             allowNull: false,
             type: DataTypes.ENUM('buy', 'sell')
         },
+        creation_timestamp: {
+            allowNull: false,
+            type: DataTypes.DATE
+        },
+        creation_datetime: {
+            allowNull: false,
+            type: DataTypes.STRING
+        },
         timestamp: {
             allowNull: false,
             type: DataTypes.DATE
@@ -91,7 +99,7 @@ module.exports = (sequelize, DataTypes) => {
             type: DataTypes.DECIMAL(30, 15)
         },
         remaining: {
-            allowNull: false,
+            allowNull: true,
             type: DataTypes.DECIMAL(30, 15)
         }
     }, {
