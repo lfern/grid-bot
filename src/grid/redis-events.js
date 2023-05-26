@@ -8,14 +8,14 @@ const { exchangeInstanceWithMarkets } = require('../services/ExchangeMarket');
 
 /**
  * 
- * @param {string} account 
+ * @param {string} accountId 
  * @param {BaseExchangeOrder} dataOrder 
  */
-exports.orderHandler = async function (account, dataOrder) {
+exports.orderHandler = async function (accountId, dataOrder) {
     // Find instance that belongs to this order
     let order = await models.StrategyInstanceOrder.findOne({
         where: {
-            account_id: account,
+            account_id: accountId,
             symbol: dataOrder.symbol,
             exchange_order_id: dataOrder.id
         },
@@ -25,7 +25,7 @@ exports.orderHandler = async function (account, dataOrder) {
         console.error(`Order not found: order ${dataOrder.id}`);
         // Save pending order for this account
         let service = new PendingAccountRepository();
-        await service.addOrder(account, dataOrder);
+        await service.addOrder(accountId, dataOrder);
     } else {
         // Get strategy intance for order
         const strategyInstance = await models.StrategyInstance.findOne({
@@ -51,7 +51,7 @@ exports.orderHandler = async function (account, dataOrder) {
         });
 
         if (strategyInstance == null) {
-            console.log(`${orderInstance} instance for account ${account} not found or not running`);
+            console.log(`${orderInstance} instance for account ${accountId} not found or not running`);
         } else {
             // create exchange
             let account = strategyInstance.strategy.account;
@@ -64,7 +64,7 @@ exports.orderHandler = async function (account, dataOrder) {
             });
 
             let gridCreator = new GridManager(exchange, strategyInstance.id, strategyInstance.strategy)
-            await gridCreator.handleOrder(account, dataOrder);
+            await gridCreator.handleOrder(dataOrder);
         }
     }
 }

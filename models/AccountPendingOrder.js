@@ -51,6 +51,7 @@ module.exports = (sequelize, DataTypes) => {
             type: DataTypes.BOOLEAN
         }
 
+
     }, {
         tableName: 'account_pending_orders'
     });

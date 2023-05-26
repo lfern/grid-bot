@@ -161,10 +161,9 @@ class GridManager {
     }
 
     /**
-     * @param {string} account
      * @param {BaseExchangeOrder} order 
      */
-    async handleOrder(account, order) {
+    async handleOrder(order) {
 
         // Only process closed orders for now
         if (order.status != 'closed') {
@@ -177,7 +176,7 @@ class GridManager {
         // if delayed save pending
         if (delayed) {
             console.error(`Delaying order ${order.id}`);
-            await this.pendingAccountRepository.addOrder(account, order, true);
+            await this.pendingAccountRepository.addOrder(this.strategy.account.id, order, true);
             console.error(`After Delaying order ${order.id}`);
         } else {
             await this.createOrders(gridEntries);

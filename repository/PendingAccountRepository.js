@@ -14,9 +14,7 @@ class PendingAccountRepository {
     async addOrder(accountId, order, delayed = false) {
         await models.sequelize.transaction(async (transaction) => {
             // check account is still present
-            console.log(111111)
             let account = await models.Account.findOne({where:{id: accountId}, transaction});
-            console.log(111111)
 
             if (account == null) {
                 console.log(`Account is not present in db ${accountId} trying to add order ${order.id}`);
