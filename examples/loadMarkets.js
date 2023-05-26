@@ -5,4 +5,4 @@ let bitfinex = new Bitfinex({
     paper: true
 });
 
-bitfinex.loadMarkets().then(markets => console.log(markets));
+bitfinex.loadMarkets().then(markets => console.log("Markets:", markets));

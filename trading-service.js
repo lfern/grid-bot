@@ -1,18 +1,19 @@
 const { cancelablePromise } = require('./src/crypto/exchanges/utils/procutils');
 const Queue = require("bull");
 require('dotenv').config();
-//const {DbHelper} = require('./src/db/DbHelper');
 const {sleep} = require('./src/crypto/exchanges/utils/timeutils');
 const models = require('./models');
 const { exchangeInstanceWithMarkets } = require('./src/services/ExchangeMarket');
 const _ = require('lodash');
-const BigNumber = require('bignumber.js');
 const { GridManager } = require('./src/grid/grid');
 const { BaseExchangeCcxtTrade } = require('./src/crypto/exchanges/ccxt/BaseExchangeCcxtTrade');
 const { BaseExchangeCcxtOrder } = require('./src/crypto/exchanges/ccxt/BaseExchangeCcxtOrder');
 const { PendingAccountRepository } = require('./repository/PendingAccountRepository');
 const { InstanceAccountRepository } = require('./repository/InstanceAccountingRepository');
 const { orderHandler } = require('./src/grid/redis-events');
+const {logger, captureConsoleLog} = require("./src/utils/logger");
+
+captureConsoleLog();
 
 /** @typedef {import('./src/grid/exchange-events').TradeDataEvent} TradeDataEvent */
 /** @typedef {import('./src/grid/exchange-events').OrderDataEvent} OrderDataEvent */
@@ -50,13 +51,13 @@ myTradesQueue.process(async (job, done) => {
     /** @type {TradeDataEvent} */
     let data = job.data;
     let dataTrade = BaseExchangeCcxtTrade.fromJson(data.trade);
-    console.log(data);
+    console.log("Trade: ", data);
     try {
         let instanceAccountRepository = new InstanceAccountRepository();
         instanceAccountRepository.createTrade(data.account, dataTrade);
         // TODO: check if all trades has completed the order ?
     } catch (ex) {
-        console.error(ex);
+        console.error("Error", ex);
     }
     done(null, { message: "trade executed" });
 });
@@ -67,12 +68,12 @@ myOrdersQueue.process(async (job, done) => {
     /** @type {OrderDataEvent} */
     let data = job.data;
     let dataOrder = BaseExchangeCcxtOrder.fromJson(data.order);
-    console.log(data);
+    console.log("Order:", data);
 
     try {
         await orderHandler(data.account, dataOrder);
     } catch (ex) {
-        console.error(ex);
+        console.error("Error", ex);
     }
 
     done(null, { message: "order executed" });
@@ -82,7 +83,7 @@ myOrdersQueue.process(async (job, done) => {
 myBalanceQueue.process(async (job, done) => {
     /** @type {BalanceDataEvent} */
     let data = job.data;
-    console.log(data);
+    console.log("Balance:", data);
     done(null, { message: "balance executed" });
 });
 
@@ -142,7 +143,7 @@ const recoverPendingTrades = cancelablePromise( async (resolve, reject, signal) 
                     }, options).then(ret => {
                         // console.log(ret);
                     }). catch(err => {
-                        console.error(err);
+                        console.error("Error:", err);
                     });
     
                     await dbOrder.destroy({transaction})
@@ -155,7 +156,7 @@ const recoverPendingTrades = cancelablePromise( async (resolve, reject, signal) 
             }
 
         } catch (ex) {
-            console.log(ex);
+            console.log("Error:", ex);
             await sleep(5000);
         }
         
@@ -167,7 +168,7 @@ startStopProcess.promise
         recoverPendingTrades.cancel();
     })
     .catch(ex => {
-        console.error(ex)
+        console.error("Error:", ex)
         recoverPendingTrades.cancel();
     });
 
@@ -175,7 +176,7 @@ recoverPendingTrades.promise
     .then(res => {
         startStopProcess.cancel();
     }).catch(ex => {
-        console.error(ex);
+        console.error("Error:", ex);
         startStopProcess.cancel();
     });
 
@@ -239,11 +240,11 @@ async function startGrids(isCancelled) {
                 await gridCreator.createOrders(entries);
 
             } catch (ex) {
-                console.error(ex);
+                console.error("Error:", ex);
             }
         }
     } catch (ex){
-        console.error(ex);
+        console.error("Error:", ex);
     }
 }
 
@@ -306,11 +307,11 @@ async function stopGrids(isCancelled) {
                 });
                 // TODO: cancel orders?
             } catch (ex) {
-                console.error(ex);
+                console.error("Error:", ex);
             }
         }
     } catch (ex) {
-        console.error(ex);
+        console.error("Error:", ex);
     }
 }
 
@@ -319,16 +320,16 @@ async function getPosition(exchange, symbol, accountType) {
     if (accountType == 'spot') {
         console.log('Fetching balance...');
         let balance = await exchange.fetchBalance();
-        console.log(balance);
+        console.log("Balance:", balance);
         let market = exchange.market(symbol);
-        console.log(market);
+        console.log("Market: ", market);
         if (market != null) {
             position = balance.total[market.base];
         }
     } else {
         console.log('Fetching positions...');
         let positions = await exchange.fetchPositions(symbol);
-        console.log(positions);
+        console.log("Positions:", positions);
         if (positions.length > 0) {
             position = positions[0].contracts;
         }

@@ -49,9 +49,9 @@ exports.tradeEventHandler = function(account, exchange, queue) {
                 account: account,
                 trade: trade.toJson()
             }, options).then(ret => {
-                console.log(ret);
+                console.log("Redis added:", ret);
             }). catch(err => {
-                console.error(err);
+                console.error("Error:", err);
             });
         }
 
@@ -80,9 +80,9 @@ exports.orderEventHandler = function(account, exchange, queue) {
                 account: account,
                 order: order.toJson(),
             }, options).then(ret => {
-                console.log(ret);
+                console.log("Redis added: ", ret);
             }). catch(err => {
-                console.error(err);
+                console.error("Error", err);
             });
         }
     });
@@ -108,9 +108,9 @@ exports.balanceEventHandler = function(account, exchange, queue) {
             account: account,
             balance: balance
         }, options).then(ret => {
-            console.log(ret);
+            console.log("Redis added:", ret);
         }). catch(err => {
-            console.error(err);
+            console.error("Error:", err);
         });
     });
 };

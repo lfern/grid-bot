@@ -46,7 +46,7 @@ const getExchangeMarkets = async function(exchangeId, accountTypeId, paper) {
             await exchangeMarket.save();
             return markets;
         } catch (ex) {
-            console.error(ex);
+            console.error("Error:", ex);
             if (exchangeMarket.markets != null) {
                 return exchangeMarket.markets;
             }

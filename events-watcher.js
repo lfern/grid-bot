@@ -9,6 +9,9 @@ const {
 
 const {exchangeInstance} = require('./src/crypto/exchanges/exchanges');
 const models = require('./models');
+const {logger, captureConsoleLog} = require("./src/utils/logger");
+
+captureConsoleLog();
 
 const myTradesQueue = new Queue("myTrades", {
     // Redis configuration
@@ -99,7 +102,7 @@ const removeAccount = function(account) {
                         removeAccount(id);
                     }).catch(err => {
                         console.log(`ws closed for account ${id} with error, removing client`)
-                        console.error(err);
+                        console.error("Error:", err);
                         removeAccount(id);
                     });
 
@@ -116,7 +119,7 @@ const removeAccount = function(account) {
             }
 
         } catch (ex) {
-            console.error(ex);
+            console.error("Error:", ex);
         }
         await sleep(5000);
 

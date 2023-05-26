@@ -12,13 +12,13 @@ let bitfinex = new Bitfinex({
 (async () => {
     await bitfinex.loadMarkets();
     let res = watchMyBalance(bitfinex, (balance) => {
-        console.log(balance);
+        console.log("Balance", balance);
     });
     res.promise.then(res => {
         console.log(`ws closed`)
     }).catch(err => {
         console.log(`ws closed with error`)
-        console.error(err);
+        console.error("Error:", err);
     });
 })();    
 

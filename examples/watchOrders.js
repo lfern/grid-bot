@@ -17,7 +17,7 @@ const ccxt = require('ccxt');
     let res = watchMyOrders(bitfinex, undefined, (orders) => {
         for(let i=0;i<orders.length;i++) {
             let order = orders[i];
-            console.log(order);
+            console.log("Order:", order);
         }
     });
 
@@ -25,6 +25,6 @@ const ccxt = require('ccxt');
         console.log(`ws closed`)
     }).catch(err => {
         console.log(`ws closed with error`)
-        console.error(err);
+        console.error("Error:", err);
     });
 })();   

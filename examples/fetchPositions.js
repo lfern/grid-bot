@@ -7,4 +7,4 @@ let bitfinex = new Bitfinex({
     secret: process.env.BITFINEX_SECRET
 });
 
-bitfinex.fetchPositions().then(results => results.forEach(result => console.log(result.contracts)));
+bitfinex.fetchPositions().then(results => results.forEach(result => console.log("Contracts:", result.contracts)));

@@ -51,7 +51,7 @@ class PendingAccountRepository {
                 if (dbOrderJson.status == 'open') {
                     dbOrder.order = order.toJson();
                     dbOrder.delayed = delayed,
-                    dbOrder.timestamp = models.Sequelize.fn('NOW');
+                    dbOrder.timestamp = order.timestamp,//models.Sequelize.fn('NOW');
                     await dbOrder.save({transaction});
                 }
             }
@@ -83,7 +83,7 @@ class PendingAccountRepository {
             defaults: {
                 account_id: accountId,
                 trade: trade.toJson(),
-                timestamp: models.Sequelize.fn('NOW'),
+                timestamp: trade.timestamp,//models.Sequelize.fn('NOW'),
                 trade_id: trade.id,
                 order_id: trade.order,
                 symbol: trade.symbol,

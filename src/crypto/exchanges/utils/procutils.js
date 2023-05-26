@@ -77,7 +77,7 @@ function watchTrades(exchange, symbol, cb) {
             } catch (ex) {
                 // "connection closed by remote server, closing code 1006"
                 // "getaddrinfo ENOTFOUND api-pub.bitfinex.com"
-                console.error(ex);
+                console.error("Error:", ex);
                 if (ex instanceof ccxt.NetworkError) {
                     await delayer.errorAndWait();
                 } else {
@@ -124,7 +124,7 @@ function watchMyTrades(exchange, symbol, cb) {
             } catch (ex) {
                 // "connection closed by remote server, closing code 1006"
                 // "getaddrinfo ENOTFOUND api-pub.bitfinex.com"
-                console.error(ex);
+                console.error("Error:", ex);
                 if (ex instanceof ccxt.NetworkError) {
                     await delayer.errorAndWait();
                 } else {
@@ -171,7 +171,7 @@ function watchMyTrades(exchange, symbol, cb) {
             } catch (ex) {
                 // "connection closed by remote server, closing code 1006"
                 // "getaddrinfo ENOTFOUND api-pub.bitfinex.com"
-                console.error(ex);
+                console.error("Error", ex);
                 if (ex instanceof ccxt.NetworkError) {
                     await delayer.errorAndWait();
                 } else {
@@ -217,7 +217,7 @@ function watchMyTrades(exchange, symbol, cb) {
             } catch (ex) {
                 // "connection closed by remote server, closing code 1006"
                 // "getaddrinfo ENOTFOUND api-pub.bitfinex.com"
-                console.error(ex);
+                console.error("Error", ex);
                 if (ex instanceof ccxt.NetworkError) {
                     await delayer.errorAndWait();
                 } else {

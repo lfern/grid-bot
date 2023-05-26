@@ -11,6 +11,6 @@ const myTradesQueue = new Queue("myTrades", {
 });
 
 myTradesQueue.process(async (job, done) => {
-    console.log(job.data);
+    console.log("JobData:", job.data);
     done(null, { message: "trade executed" });
 });

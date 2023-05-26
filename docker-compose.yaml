@@ -1,12 +1,12 @@
 version: '3'
 
 services:
-  trader:
+  trading-service:
     build:
       context: .
       dockerfile: .docker/node/Dockerfile
     image: grid-bot-nodejs
-    container_name: trades
+    container_name: trading-service
     restart: unless-stopped
     environment:
       - POSTGRES_USERNAME=${POSTGRES_USERNAME:-postgres}
@@ -21,9 +21,9 @@ services:
       - app-network
     command: ./wait-for.sh db:27017 -- /home/node/app/node_modules/.bin/nodemon app.js
 
-  trade-watcher:
+  events-watcher:
     image: grid-bot-nodejs
-    container_name: trade-watcher
+    container_name: events-watcher
     restart: unless-stopped
     environment:
       - POSTGRES_USERNAME=${POSTGRES_USERNAME:-postgres}
@@ -45,7 +45,7 @@ services:
       - POSTGRES_USER=${POSTGRES_USERNAME:-postgres}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
     ports:
-      - '5432:5432'
+      - '${POSTGRES_PORT:-5432}:5432'
     networks:
       - app-network
     volumes: 
@@ -59,7 +59,7 @@ services:
     restart: always
     ports:
       - '6379:6379'
-    command: redis-server --save 20 1 --loglevel warning --requirepass eYVX7EwVmmxKPCDmwMtyKVge8oLd2t81
+    command: redis-server --save 20 1 --loglevel warning --requirepass '${REDIS_PASSWORD}'
     volumes: 
       - redis:/data
 

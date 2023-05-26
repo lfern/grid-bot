@@ -8,4 +8,4 @@ let bitfinex = new Bitfinex({
     exchangeType: 'margin'
 });
 
-bitfinex.fetchBalance().then(results => console.log(results));
+bitfinex.fetchBalance().then(results => console.log("Results:", results));
