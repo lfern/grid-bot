@@ -57,6 +57,7 @@ services:
       - REDIS_SERVER=${REDIS_SERVER:-127.0.0.1}
       - REDIS_PORT=${REDIS_PORT:-6379}
       - REDIS_PASSWORD=${REDIS_PASSWORD:-}
+      - NODE_ENV=${NODE_ENV:-}
     volumes:
       - ./logs:/usr/src/app/logs
     networks:
@@ -71,7 +72,7 @@ services:
       - POSTGRES_USER=${POSTGRES_USERNAME:-postgres}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
     ports:
-      - '${POSTGRES_PORT:-5432}:5432'
+      - '${POSTGRES_EXT_PORT:-5432}:5432'
     networks:
       - app-network
     volumes: 
@@ -86,8 +87,11 @@ services:
     ports:
       - '6379:6379'
     command: redis-server --save 20 1 --loglevel warning --requirepass '${REDIS_PASSWORD}'
+    sysctls:
+      - net.core.somaxconn=65535
     networks:
       - app-network
+
     volumes: 
       - redis:/data
 
