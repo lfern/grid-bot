@@ -9,8 +9,10 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "node": "docker-compose run trading-service --entrypoint",
-    "start-trading-service": "if [[ \"M$NODE_ENV\" == \"Mproduction\" ]]; then node trading-service.js; else nodemon trading-service.js; fi",
-    "start-events-watcher": "if [[ \"M$NODE_ENV\" == \"Mproduction\" ]]; then node events-watcher.js; else nodemon events-watcher.js; fi"
+    "start-trading-service": "node trading-service.js",
+    "start-events-watcher": "node events-watcher.js",
+    "debug-trading-service": "nodemon trading-service.js",
+    "debug-events-watcher": "node events-watcher.js"
   },
   "repository": {
     "type": "git",
