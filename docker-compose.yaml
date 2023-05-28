@@ -12,14 +12,27 @@ services:
       - POSTGRES_USERNAME=${POSTGRES_USERNAME:-postgres}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
       - POSTGRES_HOSTNAME=${POSTGRES_HOSTNAME:-postgres}
-      - POSTGRES_PORT=${POSTGRES_PORT:-}
+      - POSTGRES_PORT=${POSTGRES_PORT:-5432}
       - POSTGRES_DB=${POSTGRES_DB:-gridbot}
+      - DEV_POSTGRES_USERNAME=${DEV_POSTGRES_USERNAME:-postgres}
+      - DEV_POSTGRES_PASSWORD=${DEV_POSTGRES_PASSWORD:-postgres}
+      - DEV_POSTGRES_HOSTNAME=${DEV_POSTGRES_HOSTNAME:-postgres}
+      - DEV_POSTGRES_PORT=${DEV_POSTGRES_PORT:-5432}
+      - DEV_POSTGRES_DB=${DEV_POSTGRES_DB:-gridbot}
+      - TEST_POSTGRES_USERNAME=${TEST_POSTGRES_USERNAME:-postgres}
+      - TEST_POSTGRES_PASSWORD=${TEST_POSTGRES_PASSWORD:-postgres}
+      - TEST_POSTGRES_HOSTNAME=${TEST_POSTGRES_HOSTNAME:-postgres}
+      - TEST_POSTGRES_PORT=${TEST_POSTGRES_PORT:-5432}
+      - TEST_POSTGRES_DB=${TEST_POSTGRES_DB:-gridbot-test}
+      - REDIS_SERVER=${REDIS_SERVER:-127.0.0.1}
+      - REDIS_PORT=${REDIS_PORT:-6379}
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-}
     volumes:
-      - .:/home/node/app
-      #- node_modules:/home/node/app/node_modules
+      - ./logs:/usr/src/app/logs
     networks:
       - app-network
-    command: ./wait-for.sh db:27017 -- /home/node/app/node_modules/.bin/nodemon app.js
+    #command: ./wait-for.sh db:27017 -- /home/node/app/node_modules/.bin/nodemon app.js
+    command: npm run start-events-watcher
 
   events-watcher:
     image: grid-bot-nodejs
@@ -31,12 +44,25 @@ services:
       - POSTGRES_HOSTNAME=${POSTGRES_HOSTNAME:-postgres}
       - POSTGRES_PORT=${POSTGRES_PORT:-5432}
       - POSTGRES_DB=${POSTGRES_DB:-gridbot}
+      - DEV_POSTGRES_USERNAME=${DEV_POSTGRES_USERNAME:-postgres}
+      - DEV_POSTGRES_PASSWORD=${DEV_POSTGRES_PASSWORD:-postgres}
+      - DEV_POSTGRES_HOSTNAME=${DEV_POSTGRES_HOSTNAME:-postgres}
+      - DEV_POSTGRES_PORT=${DEV_POSTGRES_PORT:-5432}
+      - DEV_POSTGRES_DB=${DEV_POSTGRES_DB:-gridbot}
+      - TEST_POSTGRES_USERNAME=${TEST_POSTGRES_USERNAME:-postgres}
+      - TEST_POSTGRES_PASSWORD=${TEST_POSTGRES_PASSWORD:-postgres}
+      - TEST_POSTGRES_HOSTNAME=${TEST_POSTGRES_HOSTNAME:-postgres}
+      - TEST_POSTGRES_PORT=${TEST_POSTGRES_PORT:-5432}
+      - TEST_POSTGRES_DB=${TEST_POSTGRES_DB:-gridbot-test}
+      - REDIS_SERVER=${REDIS_SERVER:-127.0.0.1}
+      - REDIS_PORT=${REDIS_PORT:-6379}
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-}
     volumes:
-      - .:/home/node/app
-      #- node_modules:/home/node/app/node_modules
+      - ./logs:/usr/src/app/logs
     networks:
       - app-network
-    command: ./wait-for.sh db:27017 -- /home/node/app/node_modules/.bin/nodemon app.js
+    #command: ./wait-for.sh db:27017 -- /home/node/app/node_modules/.bin/nodemon app.js
+    command: npm run start-trading-service
 
   postgres:
     image: postgres:14.1-alpine
@@ -60,6 +86,8 @@ services:
     ports:
       - '6379:6379'
     command: redis-server --save 20 1 --loglevel warning --requirepass '${REDIS_PASSWORD}'
+    networks:
+      - app-network
     volumes: 
       - redis:/data
 
