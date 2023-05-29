@@ -1,5 +1,6 @@
 
 const winston = require('winston');
+const util =require('util');
 // Define your severity levels.
 // With them, You can create log files,
 // see or hide levels based on the running ENV.
@@ -99,28 +100,28 @@ const captureConsoleLog = function() {
             trace: console.trace,
             warn: console.warn,
         };
-        console.debug = function(data, ...meta) {
-            logger.debug(data, ...meta);
+        console.debug = function(...msg) {
+          logger.debug(util.format(...msg));
         };
 
-        console.error = function(data, ...meta) {
-            logger.error(data, ...meta);
+        console.error = function(...msg) {
+            logger.error(util.format(...msg));
         };
 
-        console.info = function(data, ...meta) {
-            logger.info(data, ...meta);
+        console.info = function(...msg) {
+            logger.info(util.format(...msg));
         };
 
-        console.log = function(data, ...meta) {
-            logger.info(data, ...meta);
+        console.log = function(...msg) {
+            logger.info(util.format(...msg));
         };
 
-        console.trace = function(data, ...meta) {
-            logger.trace(data, ...meta);
+        console.trace = function(...msg) {
+            logger.trace(util.format(...msg));
         };
 
-        console.warn = function(data, ...meta) {
-            logger.warn(data, ...meta);
+        console.warn = function(...msg) {
+            logger.warn(util.format(...msg));
         };
     }
 };
