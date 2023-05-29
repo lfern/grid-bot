@@ -47,10 +47,14 @@ module.exports = (sequelize, DataTypes) => {
             allowNull: true,
             type: DataTypes.JSONB,
         },
-        confirmed: {
+        status: {
             allowNull: false,
-            type: DataTypes.BOOLEAN,
-            defaultValue: false,
+            type: DataTypes.ENUM('created', 'pending', 'sent', 'confirmed', 'error'),
+            defaultValue: 'created'
+        },
+        error: {
+            allowNull: true,
+            type: DataTypes.STRING(4096),
         },
         fee: {
             allowNull: true,
