@@ -12,6 +12,7 @@ const { PendingAccountRepository } = require('./repository/PendingAccountReposit
 const { InstanceAccountRepository } = require('./repository/InstanceAccountingRepository');
 const { orderHandler } = require('./src/grid/redis-events');
 const {logger, captureConsoleLog} = require("./src/utils/logger");
+const broadcastTransactionHandler = require('./src/grid/BroadcastTransactionHandler');
 
 captureConsoleLog();
 
@@ -172,31 +173,7 @@ const broadcastTransactionSender = cancelablePromise( async (resolve, reject, si
 
     while(!cancelled) {
         try {
-            // send pending transactions
-            let broadcastTransaction = null;
-            do {
-                await models.sequelize.transaction(async (transaction) => {
-                    broadcastTransaction = await models.BroadcastTransaction.findOne({
-                        where: {
-                            sent_at: null,
-                            send_requested_at:{
-                                [models.sequelize.Op.ne]: null
-                            }
-                        },
-                        transaction,
-                        lock: transaction.LOCK.UPDATE,
-                        order: [
-                            ['updated_at', 'ASC'],
-                        ],
-                    });
-                    broadcastTransaction.sent_at = models.sequelize.fn('NOW');
-                    broadcastTransaction.save({transaction});
-                });
-
-
-            } while(transaction != null);
-
-            // check transactions sent
+            broadcastTransactionHandler.execute(() => cancelled);
         } catch (ex) {
             console.log("Error", ex);
         }

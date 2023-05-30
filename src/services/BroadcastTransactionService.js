@@ -32,7 +32,7 @@ exports.send = function(transactionRaw, testnet = false) {
                 const resString = Buffer.concat(body).toString();
                 if (res.status < 200 || res.statusCode > 299) {
                     console.error(resString);
-                    reject(new Error(`HTTP status code ${res.statusCode}`));
+                    reject(new Error(`HTTP status code ${res.statusCode} ${resString}`));
                 } else {
                     resolve(resString);
                 }
@@ -70,9 +70,9 @@ exports.get = function(txid, testnet = false) {
                 const resString = Buffer.concat(body).toString();
                 if (res.status < 200 || res.statusCode > 299) {
                     console.error(resString);
-                    reject(new Error(`HTTP status code ${res.statusCode}`));
+                    reject(new Error(`HTTP status code ${res.statusCode} ${resString}`));
                 } else {
-                    resolve(resString);
+                    resolve(JSON.parse(resString));
                 }
             })
         });

@@ -72,6 +72,11 @@ module.exports = (sequelize, DataTypes) => {
         send_requested_at: {
             allowNull: true,
             type: DataTypes.DATE
+        },
+        request_status_count: {
+            allowNull: false,
+            type: DataTypes.INTEGER,
+            defaultValue: 0
         }
     }, {
         tableName: 'broadcast_transactions'
