@@ -70,6 +70,22 @@ module.exports = (sequelize, DataTypes) => {
             allowNull: false,
             type: DataTypes.BOOLEAN,
             defaultValue: true
+        },
+        wallet_balance: {
+            allowNull: true,
+            type: DataTypes.JSONB,
+        },
+        wallet_balance_updated_at: {
+            allowNull: true,
+            type: DataTypes.DATE,
+        },
+        main_balance: {
+            allowNull: true,
+            type: DataTypes.JSONB,
+        },
+        main_balance_updated_at: {
+            allowNull: true,
+            type: DataTypes.DATE,
         }
     }, {
         tableName: 'accounts'
