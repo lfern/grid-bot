@@ -73,6 +73,7 @@ const checkSentTransactions = async function(isCancelledFn = () => false) {
                 console.log(`Broadcast transaction ${pendingTransaction.id} confirmed`);
                 pendingTransaction.transaction = response;
                 pendingTransaction.status = 'confirmed';
+                pendingTransaction.fee = response.fee;
                 await pendingTransaction.save();
             } else {
                     if (pendingTransaction.request_status_count > 100) {
