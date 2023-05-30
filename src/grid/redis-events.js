@@ -53,18 +53,25 @@ exports.orderHandler = async function (accountId, dataOrder) {
         if (strategyInstance == null) {
             console.log(`${orderInstance} instance for account ${accountId} not found or not running`);
         } else {
-            // create exchange
-            let account = strategyInstance.strategy.account;
-            const exchange = await exchangeInstanceWithMarkets(account.exchange.exchange_name, {
-                exchangeType: account.account_type.account_type,
-                paper: account.paper,
-                rateLimit: 1000,  // testing 1 second though it is not recommended (I think we should not send too many requests/second)
-                apiKey: account.api_key,
-                secret: account.api_secret,
-            });
 
-            let gridCreator = new GridManager(exchange, strategyInstance.id, strategyInstance.strategy)
-            await gridCreator.handleOrder(dataOrder);
+            if (!strategyInstance.running) {
+                console.log(`Order received while grid is not running ${dataOrder.id}`);
+                let instanceAccRepository = new InstanceAccountRepository();
+                await instanceAccRepository.updateOrder(strategyInstance.account.id, dataOrder);
+            } else {
+                // create exchange
+                let account = strategyInstance.strategy.account;
+                const exchange = await exchangeInstanceWithMarkets(account.exchange.exchange_name, {
+                    exchangeType: account.account_type.account_type,
+                    paper: account.paper,
+                    rateLimit: 1000,  // testing 1 second though it is not recommended (I think we should not send too many requests/second)
+                    apiKey: account.api_key,
+                    secret: account.api_secret,
+                });
+
+                let gridCreator = new GridManager(exchange, strategyInstance.id, strategyInstance.strategy)
+                await gridCreator.handleOrder(dataOrder);
+            }
         }
     }
 }
