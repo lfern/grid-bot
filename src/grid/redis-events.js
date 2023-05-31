@@ -31,8 +31,8 @@ exports.orderHandler = async function (accountId, dataOrder) {
         const strategyInstance = await models.StrategyInstance.findOne({
             where: {
                 id: order.strategy_instance_id,
-                running: true,
-                stop_requested_at: { [models.Sequelize.Op.is]: null }
+                // running: true,
+                // stop_requested_at: { [models.Sequelize.Op.is]: null }
             },
             include: [
                 {
@@ -51,10 +51,10 @@ exports.orderHandler = async function (accountId, dataOrder) {
         });
 
         if (strategyInstance == null) {
-            console.log(`${orderInstance} instance for account ${accountId} not found or not running`);
+            console.log(`${strategyInstance} instance for account ${accountId} not found`);
         } else {
 
-            if (!strategyInstance.running) {
+            if (!strategyInstance.running || strategyInstance.stop_requested_at != null) {
                 console.log(`Order received while grid is not running ${dataOrder.id}`);
                 let instanceAccRepository = new InstanceAccountRepository();
                 await instanceAccRepository.updateOrder(strategyInstance.account.id, dataOrder);
