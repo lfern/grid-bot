@@ -112,7 +112,7 @@ const startStopProcess = cancelablePromise(async (resolve, reject, signal) => {
     }   
 });
 
-const recoverPendingTrades = cancelablePromise( async (resolve, reject, signal) => {
+const recoverPendingOrders = cancelablePromise( async (resolve, reject, signal) => {
     let cancelled = false;
 
     signal.catch(err => {
@@ -130,9 +130,12 @@ const recoverPendingTrades = cancelablePromise( async (resolve, reject, signal) 
         try {
             let rows = 0;
             
-            // TODO: remove very old not found orders (not pending)
+            // remove 5 minutes old orders
+            let removed = await pendingAccountRepository.removeNotFoundOrdersOlderThan(5 * 60);
+            console.log("Removed ...", removed);
+
             await models.sequelize.transaction(async (transaction) =>{
-                let dbOrders = await pendingAccountRepository.getOldestOrders(10, true, transaction);
+                let dbOrders = await pendingAccountRepository.getOldestOrders(50, 5, true, transaction);
                 rows = dbOrders.length;
                 if (rows == 0) {
                     return;
@@ -191,19 +194,33 @@ const broadcastTransactionSender = cancelablePromise( async (resolve, reject, si
 
 startStopProcess.promise
     .then( res => {
-        recoverPendingTrades.cancel();
+        broadcastTransactionSender.cancel();
+        recoverPendingOrders.cancel();
     })
     .catch(ex => {
         console.error("Error:", ex)
-        recoverPendingTrades.cancel();
+        broadcastTransactionSender.cancel();
+        recoverPendingOrders.cancel();
     });
 
-recoverPendingTrades.promise
+recoverPendingOrders.promise
     .then(res => {
+        broadcastTransactionSender.cancel();
         startStopProcess.cancel();
     }).catch(ex => {
         console.error("Error:", ex);
+        broadcastTransactionSender.cancel();
         startStopProcess.cancel();
+    });
+
+broadcastTransactionSender.promise
+    .then(res => {
+        startStopProcess.cancel();
+        recoverPendingOrders.cancel();
+    }).catch(ex => {
+        console.error("Error:", ex);
+        startStopProcess.cancel();
+        recoverPendingOrders.cancel();
     });
 
 async function startGrids(isCancelled) {

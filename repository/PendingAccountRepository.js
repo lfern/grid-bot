@@ -30,7 +30,7 @@ class PendingAccountRepository {
                 defaults: {
                     account_id: accountId,
                     order: order.toJson(),
-                    timestamp: models.Sequelize.fn('NOW'),
+                    timestamp: order.timestamp,
                     order_id: order.id,
                     symbol: order.symbol,
                     delayed: delayed,
@@ -51,7 +51,7 @@ class PendingAccountRepository {
                 if (dbOrderJson.status == 'open') {
                     dbOrder.order = order.toJson();
                     dbOrder.delayed = delayed,
-                    dbOrder.timestamp = order.timestamp,//models.Sequelize.fn('NOW');
+                    dbOrder.timestamp = order.timestamp,
                     await dbOrder.save({transaction});
                 }
             }
@@ -83,7 +83,7 @@ class PendingAccountRepository {
             defaults: {
                 account_id: accountId,
                 trade: trade.toJson(),
-                timestamp: trade.timestamp,//models.Sequelize.fn('NOW'),
+                timestamp: trade.timestamp,
                 trade_id: trade.id,
                 order_id: trade.order,
                 symbol: trade.symbol,
@@ -97,22 +97,33 @@ class PendingAccountRepository {
         await models.AccountPendingTrade.findOrCreate(options);
     }
 
-    async getOldestOrders(limit = 10, forUpdate = false, transaction = null) {
+    async getOldestOrders(limit = 10, olderThanSeconds = 5,forUpdate = false, transaction = null) {
         const options = {
             transaction,
             order: [
-                ['updated_at', 'ASC'],
+                ['updatedAt', 'ASC'],
             ],
             limit: limit
         };
+        
+        if (olderThanSeconds > 0) {
+            options.where = {updatedAt:  {[models.Sequelize.Op.lte]: new Date(Date.now() - (olderThanSeconds*1000))}};
+        }
 
         if (forUpdate) {
             options.lock = transaction.LOCK.UPDATE;
         }
 
-        return await models.AccountPendingOrder.findAll({
-            options,
-        });
+        return await models.AccountPendingOrder.findAll(options);
+    }
+
+    async removeNotFoundOrdersOlderThan(seconds) {
+        return await models.AccountPendingOrder.destroy({
+            where: {
+                delayed: false,
+                timestamp: {[models.Sequelize.Op.lte]: new Date(Date.now() - (seconds*1000))}
+            }
+        })
     }
 }
 
