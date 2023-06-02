@@ -143,6 +143,13 @@ class BaseExchange {
     async loadMarkets(reload = false) {
         throw new Error("NOT IMPLEMENTED");
     }
+
+    /**
+     * 
+     */
+    mainWalletAccountType() {
+        throw new Error("NOT IMPLEMENTED");
+    }
     
     /**
      * Get market info
@@ -166,8 +173,10 @@ class BaseExchange {
 
     /**
      * Watch Balance
+     * 
+     * @param {string|undefined} accountType
      */
-    async watchBalance() {
+    async watchBalance(accountType = undefined) {
         throw new Error("Not IMPLEMENTED");
     }
 

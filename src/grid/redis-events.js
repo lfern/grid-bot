@@ -2,9 +2,11 @@ const models = require('../../models');
 const { PendingAccountRepository } = require('../../repository/PendingAccountRepository');
 const { GridManager } = require('./grid');
 const { exchangeInstanceWithMarkets } = require('../services/ExchangeMarket');
+const { exchangeInstance } = require('../crypto/exchanges/exchanges');
 
 
 /** @typedef {import('../crypto/exchanges/BaseExchangeOrder').BaseExchangeOrder} BaseExchangeOrder */
+/** @typedef {import('ccxt').Balance} Balance */
 
 /**
  * 
@@ -75,3 +77,55 @@ exports.orderHandler = async function (accountId, dataOrder) {
         }
     }
 }
+
+/**
+ * 
+ * @param {string} accountId 
+ * @param {Balance} balance 
+ * @param {string} accountType
+ */
+ exports.balanceHandler = async function (accountId, balance, accountType) {
+    let account = await models.Account.findOne({
+        where: {id: accountId},
+        include: [models.Account.AccountType, models.Account.Exchange]
+    });
+    if (account == null) {
+        console.log("Account does not exist when receiving a balance event: ", accountId);
+        return;
+    }
+
+    // TODO: if pending orders to be sent send signal to send them
+    if (accountType == account.account_type.account_type) {
+        // update wallet balance
+        models.Account.update({
+            wallet_balance: balance,
+            wallet_balance_updated_at: models.Sequelize.fn('NOW'),
+        }, {
+            where: {id: accountId},
+        })
+    } else {
+        // check if it is a main balance
+        // get exchange object (don't need to initialize markets)
+        let exchange = exchangeInstance(account.exchange.exchange_name, {
+            paper: account.paper === true,
+            exchangeType: account.account_type.account_type
+        });
+
+        if (exchange.mainWalletAccountType() == accountType) {
+            // update main wallet balance
+            models.Account.update({
+                main_balance: balance,
+                main_balance_updated_at: models.Sequelize.fn('NOW'),
+            }, {
+                where: {id: accountId},
+            })    
+        }
+
+        console.log(
+            "Received a balance for this account that not belong to this accountType: ",
+            accountType,
+            account.account_type.account_type
+        );
+    }
+
+ }

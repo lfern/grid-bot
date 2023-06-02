@@ -194,7 +194,7 @@ function watchMyTrades(exchange, symbol, cb) {
  * 
  * @returns {{ret: function(): void, promise: Promise}}
  */
- function watchMyBalance(exchange, cb) {
+ function watchMyBalance(exchange, cb, accountType = undefined) {
     return cancelablePromise(async (resolve, reject, signal) => {
         let cancelled = false;
         signal.catch(err => {
@@ -210,9 +210,9 @@ function watchMyTrades(exchange, symbol, cb) {
             try {
                 while (!cancelled) {
                     // Wait for new trades
-                    let balance = await exchange.watchBalance();
+                    let balance = await exchange.watchBalance(accountType);
                     // for each trade
-                    cb(balance);
+                    cb(balance, accountType !== undefined ? accountType : exchange.getExchangeParams().exchangeType);
                 }
             } catch (ex) {
                 // "connection closed by remote server, closing code 1006"

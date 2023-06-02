@@ -46,7 +46,10 @@ const removeAccount = function(account) {
     if (account in currentConnections){
         currentConnections[account].balanceWatcherCancel();
         currentConnections[account].tradeWatcherCancel();
-        //currentConnections[account].orderWatcherCancel();
+        currentConnections[account].orderWatcherCancel();
+        if (currentConnections[account].mainBalanceWatcherCancel) {
+            currentConnections[account].mainBalanceWatcherCancel();
+        }
         currentConnections[account].exchange.close().catch(e => { });
         delete currentConnections[account];
     }
@@ -86,18 +89,29 @@ const removeAccount = function(account) {
                     let orderWatcher = orderEventHandler(id, exchange, myOrdersQueue);
                     let balanceWatcher = balanceEventHandler(id, exchange, myBalanceQueue);
 
-                    currentConnections[id] = {
+                    let connection = {
                         exchange,
                         tradeWatcherCancel: tradeWatcher.cancel,
                         orderWatcherCancel: orderWatcher.cancel,
-                        balanceWatcherCancel: balanceWatcher.cancel
+                        balanceWatcherCancel: balanceWatcher.cancel,
                     };
 
-                    Promise.any([
+                    let promises = [
                         tradeWatcher.promise,
                         orderWatcher.promise,
                         balanceWatcher.promise,
-                    ]).then(res => {
+                    ]
+
+                    if (exchange.mainWalletAccountType() != account.account_type.account_type) {
+                        console.log("Listen Main Balance Events.....")
+                        let mainBalanceWatcher = balanceEventHandler(id, exchange, myBalanceQueue, exchange.mainWalletAccountType());
+                        connection.mainBalanceWatcherCancel = mainBalanceWatcher.cancel;
+                        promises.push(mainBalanceWatcher.promise);
+                    }
+
+                    currentConnections[id] = connection;
+
+                    Promise.any(promises).then(res => {
                         console.log(`ws closed for account ${id}, removing client`)
                         removeAccount(id);
                     }).catch(err => {

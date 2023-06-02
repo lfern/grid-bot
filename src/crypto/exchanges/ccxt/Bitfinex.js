@@ -43,8 +43,9 @@ class Bitfinex extends BaseExchangeCcxt {
     }
 
     /** @inheritdoc */
-    async watchBalance() {
-        return await this.ccxtExchange.watchBalance({wallet: this.params.exchangeType == 'spot' ? 'exchange':'margin'});
+    async watchBalance(accountType = undefined) {
+        accountType = accountType != undefined ? accountType : this.params.exchangeType;
+        return await this.ccxtExchange.watchBalance({wallet: accountType == 'spot' ? 'exchange':'margin'});
     }
 
 }

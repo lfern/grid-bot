@@ -10,7 +10,7 @@ const { BaseExchangeCcxtTrade } = require('./src/crypto/exchanges/ccxt/BaseExcha
 const { BaseExchangeCcxtOrder } = require('./src/crypto/exchanges/ccxt/BaseExchangeCcxtOrder');
 const { PendingAccountRepository } = require('./repository/PendingAccountRepository');
 const { InstanceAccountRepository } = require('./repository/InstanceAccountingRepository');
-const { orderHandler } = require('./src/grid/redis-events');
+const { orderHandler, balanceHandler } = require('./src/grid/redis-events');
 const {logger, captureConsoleLog} = require("./src/utils/logger");
 const broadcastTransactionHandler = require('./src/grid/BroadcastTransactionHandler');
 
@@ -85,6 +85,12 @@ myBalanceQueue.process(async (job, done) => {
     /** @type {BalanceDataEvent} */
     let data = job.data;
     console.log("Balance:", data);
+    try {
+        await balanceHandler(data.account, data.balance, data.accountType);
+    } catch (ex) {
+        console.error("Error processing balance event:", ex);
+    }
+    
     done(null, { message: "balance executed" });
 });
 

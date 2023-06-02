@@ -25,6 +25,7 @@ const {watchMyTrades, watchMyBalance, watchMyOrders} = require('../crypto/exchan
  * @typedef {Object} BalanceDataEvent
  * @property {string} account
  * @property {Balance} balance
+ * @property {string} accountType
  */
 
 /**
@@ -45,6 +46,7 @@ exports.tradeEventHandler = function(account, exchange, queue) {
         // send to redis
         for(let i=0;i<trades.length;i++) {
             let trade = trades[i];
+            console.log(trade);
             queue.add({
                 account: account,
                 trade: trade.toJson()
@@ -76,6 +78,7 @@ exports.orderEventHandler = function(account, exchange, queue) {
         for(let i=0;i<orders.length;i++) {
             let order = orders[i];
             // send to redis
+            console.info(order);
             queue.add({
                 account: account,
                 order: order.toJson(),
@@ -95,23 +98,25 @@ exports.orderEventHandler = function(account, exchange, queue) {
  * @param {Queue} queue 
  * @returns 
  */
-exports.balanceEventHandler = function(account, exchange, queue) {
-    return watchMyBalance(exchange, (balance) => {
+exports.balanceEventHandler = function(account, exchange, queue, accountType = undefined) {
+    return watchMyBalance(exchange, (balance, accountType) => {
         const options = {
             attempts: 0,
             removeOnComplete: true,
             removeOnFail: true,
         };
 
+        console.info(balance, accountType);
         // send to redis
         queue.add({
             account: account,
-            balance: balance
+            balance: balance,
+            accountType: accountType,
         }, options).then(ret => {
             console.log("Redis added:", ret);
         }). catch(err => {
             console.error("Error:", err);
         });
-    });
+    }, accountType);
 };
 

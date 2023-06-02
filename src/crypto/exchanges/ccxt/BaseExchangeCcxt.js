@@ -139,6 +139,11 @@ class BaseExchangeCcxt extends BaseExchange {
     }
 
     /** @inheritdoc */
+    mainWalletAccountType() {
+        return 'spot';
+    }
+
+    /** @inheritdoc */
     market(symbol) {
         return this.ccxtExchange.market(symbol);
     }
@@ -163,8 +168,8 @@ class BaseExchangeCcxt extends BaseExchange {
     }
 
     /** @inheritdoc */
-    async watchBalance() {
-        return await this.ccxtExchange.watchBalance();
+    async watchBalance(accountType = undefined) {
+        return await this.ccxtExchange.watchBalance(accountType);
     }
 
     /** @inheritdoc */
