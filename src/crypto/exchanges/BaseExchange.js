@@ -162,6 +162,13 @@ class BaseExchange {
     }
 
     /**
+     * @returns {ccxt.Market}
+     */
+    get markets() {
+        throw new Error("NOT IMPLEMENTED");
+    }
+
+    /**
      * 
      * @param {string} symbol 
      * @param {float} price 

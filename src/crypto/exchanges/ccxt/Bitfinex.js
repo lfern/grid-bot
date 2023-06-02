@@ -43,6 +43,16 @@ class Bitfinex extends BaseExchangeCcxt {
     }
 
     /** @inheritdoc */
+    get markets() {
+        if (this.params.paper) {
+            return Object.fromEntries(Object.entries(this.ccxtExchange.markets).filter(([k,v]) => k.startsWith('TEST')));
+        } else {
+            return Object.fromEntries(Object.entries(this.ccxtExchange.markets).filter(([k,v]) => !k.startsWith('TEST')));
+        }
+    }    
+
+
+    /** @inheritdoc */
     async watchBalance(accountType = undefined) {
         accountType = accountType != undefined ? accountType : this.params.exchangeType;
         return await this.ccxtExchange.watchBalance({wallet: accountType == 'spot' ? 'exchange':'margin'});

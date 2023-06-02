@@ -130,7 +130,7 @@ class BaseExchangeCcxt extends BaseExchange {
 
     /** @inheritdoc */
     async getMarkets() {
-        return await this.ccxtExchange.loadMarkets(reload);
+        return await this.ccxtExchange.loadMarkets();
     }
 
     /** @inheritdoc */
@@ -146,6 +146,11 @@ class BaseExchangeCcxt extends BaseExchange {
     /** @inheritdoc */
     market(symbol) {
         return this.ccxtExchange.market(symbol);
+    }
+
+    /** @inheritdoc */
+    get markets() {
+        return this.ccxtExchange.markets;
     }
 
     /** @inheritdoc */
