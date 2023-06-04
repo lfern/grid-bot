@@ -134,6 +134,34 @@ class BaseExchangeCcxt extends BaseExchange {
     }
 
     /** @inheritdoc */
+    getInternalMarketsInfo() {
+        return {
+            markets: this.ccxtExchange.markets,
+            currencies: this.ccxtExchange.currencies,
+        }
+    }
+
+    /** @inheritdoc */
+    getWalletNames() {
+        return Object.keys(this.ccxtExchange.accountsById);
+    }
+    
+    /** @inheritdoc */
+    initMarketsFrom(exchange) {
+        if (this.exchangeName != exchange.exchangeName) {
+            throw new Exception("Exchange not compatible");
+        }
+
+        let internalMarkets = this.getInternalMarketsInfo();
+        this.ccxtExchange.setMarkets(internalMarkets.markets, internalMarkets.currencies);
+    }
+
+    /** @inheritdoc */
+    async initMarkets(internalMarkets) {
+        this.ccxtExchange.setMarkets(internalMarkets.markets, internalMarkets.currencies);
+    }
+
+    /** @inheritdoc */
     async loadMarkets(reload = false) {
         return await this.ccxtExchange.loadMarkets(reload);
     }
@@ -159,17 +187,8 @@ class BaseExchangeCcxt extends BaseExchange {
     }
 
     /** @inheritdoc */
-    async initMarketsFrom(exchange) {
-        if (this.exchangeName != exchange.exchangeName) {
-            throw new Exception("Exchange not compatible");
-        }
-
-        this.ccxtExchange.setMarkets(await exchange.ccxtExchange.loadMarkets());
-    }
-
-    /** @inheritdoc */
-    async initMarkets(markets) {
-        this.ccxtExchange.setMarkets(markets);
+    async transfer(code, amount, fromAccount, toAccount) {
+        await this.ccxtExchange.transfer(code, amount, fromAccount, toAccount);
     }
 
     /** @inheritdoc */

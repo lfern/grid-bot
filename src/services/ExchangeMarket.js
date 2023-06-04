@@ -12,7 +12,7 @@ const models = require('../../models/');
  * @param {boolean} paper 
  * @returns {any}
  */
-const getExchangeMarkets = async function(exchangeId, accountTypeId, paper) {
+const getExchangeInternalMarketsInfo = async function(exchangeId, accountTypeId, paper) {
     const exchangeMarket = await models.ExchangeMarket.findOne({
         where: {
             '$exchange.exchange_name$': exchangeId,
@@ -40,8 +40,8 @@ const getExchangeMarkets = async function(exchangeId, accountTypeId, paper) {
                 exchangeType: accountTypeId,
             });
 
-            let markets = await exchange.loadMarkets();
-            exchangeMarket.markets = markets;
+            await exchange.loadMarkets();
+            exchangeMarket.markets = exchange.getInternalMarketsInfo();
             exchangeMarket.markets_updated_at = models.Sequelize.fn('NOW');
             await exchangeMarket.save();
             return markets;
@@ -64,7 +64,7 @@ const getExchangeMarkets = async function(exchangeId, accountTypeId, paper) {
  */
 const initializeExchangeMarkets = async function(exchange) {
     let props = exchange.getExchangeParams();
-    let markets = await getExchangeMarkets(
+    let markets = await getExchangeInternalMarketsInfo(
         exchange.getId(), 
         props.exchangeType,
         props.paper);
@@ -86,6 +86,5 @@ const exchangeInstanceWithMarkets = async function(id, options) {
 
 module.exports = {
     initializeExchangeMarkets,
-    getExchangeMarkets,
     exchangeInstanceWithMarkets,
 }

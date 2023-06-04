@@ -134,6 +134,30 @@ class BaseExchange {
     async getMarkets() {
         throw new Error("NOT IMPLEMENTED");
     }
+
+    /**
+     * 
+     */
+    getInternalMarketsInfo() {
+        throw new Error("NOT IMPLEMENTED");
+    }
+
+    /**
+     * 
+     */
+    getWalletNames() {
+        throw new Error("NOT IMPLEMENTED");
+    }
+    
+    /** @inheritdoc */
+    initMarketsFrom(exchange) {
+        throw new Error("NOT IMPLEMENTED");
+    }
+
+    /** @inheritdoc */
+    initMarkets(markets) {
+        throw new Error("NOT IMPLEMENTED");
+    }    
         
     /**
      * 
@@ -176,6 +200,17 @@ class BaseExchange {
      */
     priceToPrecision(symbol, price) {
         throw new Error("Not implemented")
+    }
+
+    /**
+     * 
+     * @param {string} code 
+     * @param {float} amount 
+     * @param {string} fromAccount 
+     * @param {string} toAccount 
+     */
+    async transfer(code, amount, fromAccount, toAccount) {
+        throw new Error("NOT IMPLEMENTED");
     }
 
     /**

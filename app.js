@@ -13,7 +13,7 @@ const { Bitfinex } = require('./src/crypto/exchanges/Bitfinex');
         });
         console.log("------------------------------------")
 
-        await bitfinex2.initMarketsFrom(bitfinex);
+        bitfinex2.initMarketsFrom(bitfinex);
         //console.log(await bitfinex2.loadMarkets());
     } catch (ex) {
         console.error("Error:", ex);

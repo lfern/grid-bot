@@ -43,6 +43,11 @@ class Bitfinex extends BaseExchangeCcxt {
     }
 
     /** @inheritdoc */
+    getWalletNames() {
+        return ['spot', 'margin', 'future'];
+    }
+
+    /** @inheritdoc */
     get markets() {
         if (this.params.paper) {
             return Object.fromEntries(Object.entries(this.ccxtExchange.markets).filter(([k,v]) => k.startsWith('TEST')));
@@ -50,7 +55,6 @@ class Bitfinex extends BaseExchangeCcxt {
             return Object.fromEntries(Object.entries(this.ccxtExchange.markets).filter(([k,v]) => !k.startsWith('TEST')));
         }
     }    
-
 
     /** @inheritdoc */
     async watchBalance(accountType = undefined) {
