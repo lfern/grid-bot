@@ -3,17 +3,23 @@ const { PendingAccountRepository } = require('../../repository/PendingAccountRep
 const { GridManager } = require('./grid');
 const { exchangeInstanceWithMarkets } = require('../services/ExchangeMarket');
 const { exchangeInstance } = require('../crypto/exchanges/exchanges');
-
+const Redlock= require("redlock");
+const { InstanceRepository } = require('../../repository/InstanceRepository');
+const { InstanceAccountRepository } = require('../../repository/InstanceAccountingRepository');
 
 /** @typedef {import('../crypto/exchanges/BaseExchangeOrder').BaseExchangeOrder} BaseExchangeOrder */
 /** @typedef {import('ccxt').Balance} Balance */
 
+let instanceRepository = new InstanceRepository();
+let instanceAccRepository = new InstanceAccountRepository();
+
 /**
  * 
+ * @param {Redlock} redlock 
  * @param {string} accountId 
  * @param {BaseExchangeOrder} dataOrder 
  */
-exports.orderHandler = async function (accountId, dataOrder) {
+exports.orderHandler = async function (redlock, myOrderSenderQueue, accountId, dataOrder) {
     // Find instance that belongs to this order
     let order = await models.StrategyInstanceOrder.findOne({
         where: {
@@ -30,50 +36,55 @@ exports.orderHandler = async function (accountId, dataOrder) {
         await service.addOrder(accountId, dataOrder);
     } else {
         // Get strategy intance for order
-        const strategyInstance = await models.StrategyInstance.findOne({
-            where: {
-                id: order.strategy_instance_id,
-                // running: true,
-                // stop_requested_at: { [models.Sequelize.Op.is]: null }
-            },
-            include: [
-                {
-                    association: models.StrategyInstance.Strategy,
-                    include: [
-                        {
-                            association: models.Strategy.Account,
-                            include: [
-                                models.Account.Exchange,
-                                models.Account.AccountType
-                            ]
-                        }
-                    ]
-                }
-            ]
-        });
+        const strategyInstance = await instanceRepository.getInstance(order.strategy_instance_id);
 
         if (strategyInstance == null) {
             console.log(`${strategyInstance} instance for account ${accountId} not found`);
         } else {
+            await instanceAccRepository.updateOrder(strategyInstance.strategy.account.id, dataOrder);
 
-            if (!strategyInstance.running || strategyInstance.stop_requested_at != null) {
-                console.log(`Order received while grid is not running ${dataOrder.id}`);
-                let instanceAccRepository = new InstanceAccountRepository();
-                await instanceAccRepository.updateOrder(strategyInstance.account.id, dataOrder);
-            } else {
-                // create exchange
-                let account = strategyInstance.strategy.account;
-                const exchange = await exchangeInstanceWithMarkets(account.exchange.exchange_name, {
-                    exchangeType: account.account_type.account_type,
-                    paper: account.paper,
-                    rateLimit: 1000,  // testing 1 second though it is not recommended (I think we should not send too many requests/second)
-                    apiKey: account.api_key,
-                    secret: account.api_secret,
-                });
-
-                let gridCreator = new GridManager(exchange, strategyInstance.id, strategyInstance.strategy)
-                await gridCreator.handleOrder(dataOrder);
+            console.log(`Try to acquire lock in orderHandler for order ${dataOrder.id} for instance ${strategyInstance.id}`);
+            let lock = null;
+            try {
+                lock = await redlock.acquire(['grid-instance-' + strategyInstance.id], 15000);
+                
+                console.log(`Lock acquired in orderHandler for order ${dataOrder.id} for instance ${strategyInstance.id}`);
+                if (!strategyInstance.running) {
+                    console.log(`Order received while grid is not running ${dataOrder.id}`);
+                } else {
+                    // create exchange
+                    let account = strategyInstance.strategy.account;
+                    const exchange = await exchangeInstanceWithMarkets(account.exchange.exchange_name, {
+                        exchangeType: account.account_type.account_type,
+                        paper: account.paper,
+                        rateLimit: 1000,  // testing 1 second though it is not recommended (I think we should not send too many requests/second)
+                        apiKey: account.api_key,
+                        secret: account.api_secret,
+                    });
+    
+                    let gridCreator = new GridManager(exchange, strategyInstance.id, strategyInstance.strategy)
+                    if (await gridCreator.handleOrder(dataOrder)) {
+                        const options = {
+                            attempts: 0,
+                            removeOnComplete: true,
+                            removeOnFail: true,
+                        };
+    
+                        myOrderSenderQueue.add(strategyInstance.id, options).then(ret => {
+                            console.log("Redis added:", ret);
+                        }). catch(err => {
+                            console.error("Error:", err);
+                        });
+                    }
+                }
+                
+            } catch (ex) {
+                console.error(`Error waiting for lock in orderHandler for order ${dataOrder.id} for instance ${strategyInstance.id} try to repeat`, ex)
+            } finally {
+                console.log(`Lock released in orderHandler for order ${dataOrder.id} for instance ${strategyInstance.id}`);
+                if (lock != null) try{await lock.unlock();}catch(ex){console.error(ex);}
             }
+
         }
     }
 }

@@ -7,8 +7,11 @@ const {BaseExchangeCcxtOrder} = require('./BaseExchangeCcxtOrder');
 const {BaseExchangeCcxtPosition} = require('./BaseExchangeCcxtPosition');
 const {BaseExchangeCcxtTrade} = require('./BaseExchangeCcxtTrade');
 const {overrides} = require('./override');
+const { SimpleThrottlerCache } = require("./throttlers/SimpleThrottlerCache");
 
 /** @typedef {import('../BaseExchange').ExchangeOptions} ExchangeOptions */
+
+let cacheThrottler = new SimpleThrottlerCache();
 
 /**
  * @class
@@ -24,6 +27,7 @@ class BaseExchangeCcxt extends BaseExchange {
             verbose: false,
             exchangeType: "spot",
             paper: false,
+            timeout: 10000,
         }, params));
         /** @type {string} */
         this.exchangeName = exchangeName;
@@ -33,12 +37,13 @@ class BaseExchangeCcxt extends BaseExchange {
         } 
 
         let ccxtOptions = _.pickBy({
-            verbose: this.params.verbose,
+            verbose: true,//this.params.verbose,
             exchangeType: this.params.exchangeType,
             apiKey: this.params.apiKey,
             secret: this.params.secret,
             rateLimit: this.params.rateLimit,
-        }, _.identity);;
+            timeout: this.params.timeout,
+        }, _.identity);
 
         if (overrides.hasOwnProperty(exchangeName)) {
             console.log(`${exchangeName} overrided with custom implementation`)
@@ -48,6 +53,14 @@ class BaseExchangeCcxt extends BaseExchange {
         } else {
             /** @type {ccxt.Exchange} */
             this.ccxtExchange = new ccxt.pro[exchangeName](ccxtOptions);
+        }
+
+        let hash = this.getThrottlerHash(this.params.exchangeType, this.params.paper);
+        let throttler = cacheThrottler.getThrottler(hash);
+        if (throttler != null) {
+            this.ccxtExchange.throttler = throttler;
+        } else {
+            cacheThrottler.setThrottler(hash, this.ccxtExchange.throttler);
         }
     }
 
@@ -139,6 +152,15 @@ class BaseExchangeCcxt extends BaseExchange {
             markets: this.ccxtExchange.markets,
             currencies: this.ccxtExchange.currencies,
         }
+    }
+
+    /**
+     * 
+     * @param {string} exchangeType 
+     * @param {boolean} paper 
+     */
+    getThrottlerHash(exchangeType, paper) {
+        throw new Error("NOT IMPLEMENTED");
     }
 
     /** @inheritdoc */

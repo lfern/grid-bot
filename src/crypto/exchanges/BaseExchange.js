@@ -11,6 +11,7 @@ const ccxt = require('ccxt');
  * @property {string} [apiKey]
  * @property {string} [secret]
  * @property {int} [rateLimit]
+ * @property {int} [timeout]
  */
 
 /**

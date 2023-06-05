@@ -43,6 +43,12 @@ class Bitfinex extends BaseExchangeCcxt {
     }
 
     /** @inheritdoc */
+    getThrottlerHash(exchangeType, paper) {
+        return this.ccxtExchange.id;
+    }
+
+
+    /** @inheritdoc */
     getWalletNames() {
         return ['spot', 'margin', 'future'];
     }

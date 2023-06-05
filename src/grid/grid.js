@@ -26,6 +26,33 @@ class GridManager {
         this.pendingAccountRepository = new PendingAccountRepository();
     }
 
+    async getNextOrderToSend() {
+        // get all grid entries orderes by buy id
+        let gridEntries = await models.StrategyInstanceGrid.findAll({
+            where: {
+                strategy_instance_id: this.instanceId,
+            },
+            order: [
+                ['buy_order_id', 'ASC'],
+            ]
+        });
+
+        let pendingOrders = gridEntries.filter(x => x.active != null);
+        let buys = pendingOrders.filter(x => x.side == 'buy');
+        let sells = pendingOrders.filter(x => x.side == 'sell').reverse();
+        let orders = _.compact(_.flatten(_.zip(sells, buys)));
+        for(let i=0; i<orders.length;i++) {
+            let order = orders[i];
+            if (order.exchange_order_id == null) {
+                console.log(`Pending order for grid ${this.instanceId}: buy order id ${order.buy_order_id} ${order.side} ${order.order_qty}`);
+                return order;
+            }
+        }
+
+        console.log("No pending order for grid", this.instanceId);
+        return null;
+    }
+
     _createGridEntry(level, gridId, side, active, currentPrice) {
         let symbol = this.strategy.symbol;
         let gridPrice;
@@ -120,7 +147,7 @@ class GridManager {
             await this.exchange.cancelOrder(orders[i],this.strategy.symbol);
         }
     }
-
+/*
     async createOrders(gridEntries) {
         let sells = gridEntries.filter(entry => entry.exchange_order_id == null && entry.active === false && entry.side == 'sell').sort((a,b) => a.price < a.price ? 1 : (a.price > a.price ? -1 : 0));
         let buys = gridEntries.filter(entry => entry.exchange_order_id == null && entry.active === false && entry.side == 'buy').sort((a,b) => a.price > a.price ? 1 : (a.price < a.price ? -1 : 0));
@@ -136,7 +163,7 @@ class GridManager {
                 gridOrder.price
             );
             
-            models.sequelize.transaction(async (transaction)=> {
+            await models.sequelize.transaction(async (transaction)=> {
                 let result = await models.StrategyInstanceGrid.update({
                     active: true,
                     exchange_order_id: order.id,
@@ -159,7 +186,7 @@ class GridManager {
             });
         }
     }
-
+*/
     /**
      * @param {BaseExchangeOrder} order 
      */
@@ -167,8 +194,7 @@ class GridManager {
 
         // Only process closed orders for now
         if (order.status != 'closed') {
-            await this.instanceAccRepository.updateOrder(this.strategy.account.id, order);
-            return;
+            return false;
         }
 
         // Block grid
@@ -178,14 +204,14 @@ class GridManager {
             console.error(`Delaying order ${order.id}`);
             await this.pendingAccountRepository.addOrder(this.strategy.account.id, order, true);
             console.error(`After Delaying order ${order.id}`);
+            return false;
         } else {
-            await this.createOrders(gridEntries);
             await this.cancelOrders(canceledOrders);
-            await this.instanceAccRepository.updateOrder(this.strategy.account.id, order);
+            return true;
         }
 
     }
-    
+
     async _tryModifyGrid(order) {
         let gridEntriesRaw = [];
         let canceledOrders = [];
@@ -204,6 +230,7 @@ class GridManager {
             });
             // check grid data
             let indexOrder = -1;
+            // TODO: not need all actives...
             let allActives = true;
             let indexHigherBuy = -1;
             let indexLowerSell = -1;
