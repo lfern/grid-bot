@@ -144,6 +144,7 @@ class GridManager {
 
     async cancelOrders(orders) {
         for (let i=0;i<orders.length;i++) {
+            console.log(`Canceling order ${orders[i]} ${this.strategy.symbol}`);
             await this.exchange.cancelOrder(orders[i],this.strategy.symbol);
         }
     }
@@ -190,24 +191,35 @@ class GridManager {
     /**
      * @param {BaseExchangeOrder} order 
      */
-    async handleOrder(order) {
-
+    async handleOrder(order, delayedOrder) {
         // Only process closed orders for now
         if (order.status != 'closed') {
-            return false;
+            await this.instanceAccRepository.updateOrder(this.strategy.account.id, order);
+            await this.pendingAccountRepository.removeOrder(this.strategy.account.id, order);
+            return null;
         }
+        
+        // TODO: check if there is a pending order in the grid with lower createdAt 
 
         // Block grid
         let [gridEntries, canceledOrders, delayed] = await this._tryModifyGrid(order);
-        // if delayed save pending
+        // if delayed means this order is not in grid now
         if (delayed) {
-            console.error(`Delaying order ${order.id}`);
-            await this.pendingAccountRepository.addOrder(this.strategy.account.id, order, true);
-            console.error(`After Delaying order ${order.id}`);
-            return false;
+            // check if order is still processed
+            let orderInDb = this.instanceAccRepository.getOrder(this.strategy.account.id, order);
+            if (orderInDb.status == 'closed') {
+                // still processed
+                console.log(`Order ${order.id} seems to be processed in ${this.instanceId}, so remove from pending`);
+                await this.pendingAccountRepository.removeOrder(this.strategy.account.id, order);
+            }
+            return null;
         } else {
+            // order has been processed now or still processed, so update and remove from pending
+            await this.instanceAccRepository.updateOrder(this.strategy.account.id, order);
+            await this.pendingAccountRepository.removeOrder(this.strategy.account.id, order);
+            // cancel orders removed from grid
             await this.cancelOrders(canceledOrders);
-            return true;
+            return order;
         }
 
     }
@@ -253,8 +265,9 @@ class GridManager {
 
             });
 
-            // If grid is updating or order not in grid now, stop
-            if (!allActives || indexOrder == -1) {
+            // If order not in grid now, stop
+            if (/*!allActives || */indexOrder == -1) {
+                // if all actives then this order is processed before  
                 delayed = !allActives;
                 return;
             }
@@ -265,6 +278,9 @@ class GridManager {
                     console.error("buy order executed is not the higher buy in ther grid???");
                     return;
                 }
+
+                this._printGrid(gridEntries.map(x => x.get({ plain: true })));
+
                 for(let i=indexHigherBuy; i <= indexOrder; i++) {
                     this._removeIndexFromGrid(gridEntries, i, canceledOrders);
                 }
@@ -274,6 +290,9 @@ class GridManager {
                     console.error("sell order executed is not the lower sell in ther grid???");
                     return;
                 }
+
+                this._printGrid(gridEntries.map(x => x.get({ plain: true })));
+
                 for(let i=indexLowerSell; i >= indexOrder; i--) {
                     this._removeIndexFromGrid(gridEntries, i, canceledOrders);
                 }
@@ -284,13 +303,19 @@ class GridManager {
                     await gridEntries[i].save({transaction});
                 }
             }
+
             gridEntriesRaw = gridEntries.map(x => x.get({ plain: true }));
-            gridEntriesRaw.forEach(entry => {
-                console.log(`${entry.buy_order_id}\t${entry.position_before_order}\t${entry.side}\t${entry.active}\t${entry.exchange_order_id}`);
-            })
+            this._printGrid(gridEntriesRaw);
         });
         
         return [gridEntriesRaw, canceledOrders, delayed];
+    }
+
+    _printGrid(gridEntriesRaw) {
+        gridEntriesRaw.forEach(entry => {
+            console.log(`${entry.buy_order_id}\t${entry.position_before_order}\t${entry.side}\t${entry.active}\t${entry.exchange_order_id}`);
+        })
+
     }
 
     _removeIndexFromGrid(gridEntries, index, canceledOrders) {

@@ -5,11 +5,11 @@ const { balanceHandler } = require("../grid/redis-events");
 exports.balanceWorker = async (job, done) => {
     /** @type {BalanceDataEvent} */
     let data = job.data;
-    console.log("Balance:", data);
+    console.log(`BalanceWorker: received balance:${data.account} ${data.accountType}`);
     try {
         await balanceHandler(data.account, data.balance, data.accountType);
     } catch (ex) {
-        console.error("Error processing balance event:", ex);
+        console.error("BalanceWorker:", ex);
     }
     
     done(null, { message: "balance executed" });

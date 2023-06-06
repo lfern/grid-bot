@@ -12,6 +12,7 @@ const { InstanceAccountRepository } = require('../../repository/InstanceAccounti
 
 let instanceRepository = new InstanceRepository();
 let instanceAccRepository = new InstanceAccountRepository();
+let pendingAccountRepository = new PendingAccountRepository();
 
 /**
  * 
@@ -19,7 +20,12 @@ let instanceAccRepository = new InstanceAccountRepository();
  * @param {string} accountId 
  * @param {BaseExchangeOrder} dataOrder 
  */
-exports.orderHandler = async function (redlock, myOrderSenderQueue, accountId, dataOrder) {
+exports.orderHandler = async function (redlock, myOrderSenderQueue, accountId, dataOrder, delayed) {
+    if (delayed === undefined) {
+        console.log(`OrderHandler: Add order to pending (first time seen here) ${accountId} ${dataOrder.id} ${dataOrder.symbol} ${dataOrder.status}`);
+        await pendingAccountRepository.addOrder(accountId, dataOrder);
+    }
+
     // Find instance that belongs to this order
     let order = await models.StrategyInstanceOrder.findOne({
         where: {
@@ -30,59 +36,78 @@ exports.orderHandler = async function (redlock, myOrderSenderQueue, accountId, d
     });
 
     if (order == null) {
-        console.error(`Order not found: order ${dataOrder.id}`);
+        console.error(`OrderHandler: order not found ${dataOrder.id} set delayed=false`);
         // Save pending order for this account
-        let service = new PendingAccountRepository();
-        await service.addOrder(accountId, dataOrder);
+        await pendingAccountRepository.setDelayed(accountId, dataOrder, false);
     } else {
         // Get strategy intance for order
         const strategyInstance = await instanceRepository.getInstance(order.strategy_instance_id);
 
         if (strategyInstance == null) {
-            console.log(`${strategyInstance} instance for account ${accountId} not found`);
+            console.log(`OrderHandler: ${strategyInstance} instance for account ${accountId} not found, remove order ${dataOrder.id} from pending data`);
+            await pendingAccountRepository.removeOrder(strategyInstance.strategy.account.id, dataOrder);
         } else {
-            await instanceAccRepository.updateOrder(strategyInstance.strategy.account.id, dataOrder);
+            // Save before process just to be sure we don't loose it
+            await pendingAccountRepository.setDelayed(strategyInstance.strategy.account.id, dataOrder, true);
 
-            console.log(`Try to acquire lock in orderHandler for order ${dataOrder.id} for instance ${strategyInstance.id}`);
-            let lock = null;
-            try {
-                lock = await redlock.acquire(['grid-instance-' + strategyInstance.id], 15000);
-                
-                console.log(`Lock acquired in orderHandler for order ${dataOrder.id} for instance ${strategyInstance.id}`);
-                if (!strategyInstance.running) {
-                    console.log(`Order received while grid is not running ${dataOrder.id}`);
-                } else {
-                    // create exchange
-                    let account = strategyInstance.strategy.account;
-                    const exchange = await exchangeInstanceWithMarkets(account.exchange.exchange_name, {
-                        exchangeType: account.account_type.account_type,
-                        paper: account.paper,
-                        rateLimit: 1000,  // testing 1 second though it is not recommended (I think we should not send too many requests/second)
-                        apiKey: account.api_key,
-                        secret: account.api_secret,
-                    });
-    
-                    let gridCreator = new GridManager(exchange, strategyInstance.id, strategyInstance.strategy)
-                    if (await gridCreator.handleOrder(dataOrder)) {
-                        const options = {
-                            attempts: 0,
-                            removeOnComplete: true,
-                            removeOnFail: true,
-                        };
-    
-                        myOrderSenderQueue.add(strategyInstance.id, options).then(ret => {
-                            console.log("Redis added:", ret);
-                        }). catch(err => {
-                            console.error("Error:", err);
+            let retry = true;
+            while(retry) {
+                retry = false;
+                console.log(`OrderHandler: try to acquire lock in orderHandler for order ${dataOrder.id} for instance ${strategyInstance.id}`);
+                let lock = null;
+                try {
+                    try {
+                        lock = await redlock.acquire(['grid-instance-' + strategyInstance.id], 15000);
+                    } catch (ex) {
+                        console.error(`OrderHandler: error waiting for lock in orderHandler for order ${dataOrder.id} for instance ${strategyInstance.id} try to repeat`, ex)
+                        // TODO: what to do with this order: save for latter?
+                    }   
+
+                    console.log(`OrderHandler: Lock acquired in orderHandler for order ${dataOrder.id} for instance ${strategyInstance.id}`);
+                    if (!strategyInstance.running) {
+                        console.log(`OrderHandler: order received while grid is not running ${dataOrder.id}`);
+                        await pendingAccountRepository.removeOrder(strategyInstance.strategy.account.id, dataOrder);
+                    } else {
+                        // create exchange
+                        let account = strategyInstance.strategy.account;
+                        const exchange = await exchangeInstanceWithMarkets(account.exchange.exchange_name, {
+                            exchangeType: account.account_type.account_type,
+                            paper: account.paper,
+                            rateLimit: 1000,  // testing 1 second though it is not recommended (I think we should not send too many requests/second)
+                            apiKey: account.api_key,
+                            secret: account.api_secret,
                         });
+        
+                        let gridCreator = new GridManager(exchange, strategyInstance.id, strategyInstance.strategy);
+                        let orderHandled = await gridCreator.handleOrder(dataOrder, delayed);
+    
+                        if (orderHandled != null) {
+                            const options = {
+                                attempts: 0,
+                                removeOnComplete: true,
+                                removeOnFail: true,
+                            };
+        
+                            console.log("OrderHandler: send grid update:", strategyInstance.id);
+                            myOrderSenderQueue.add(strategyInstance.id, options).then(ret => {
+                                console.log("OrderHandler: redis added grid update:", strategyInstance.id);
+                            }). catch(err => {
+                                console.error("OrderHandler:", err);
+                            });
+                            
+                            if (orderHandled.id != dataOrder.id) {
+                                retry = true;
+                                console.log(`OrderHandler: grid procesed order id ${handleOrder.id} instead of ${dataOrder.id}, try to execute with new locking period`);
+                            }
+                        }
                     }
+                    
+                } catch (ex) {
+                    console.error(`OrderHandler: error handling orderHandler for order ${dataOrder.id} for instance ${strategyInstance.id} try to repeat`, ex)
+                } finally {
+                    console.log(`OrderHandler: lock released in orderHandler for order ${dataOrder.id} for instance ${strategyInstance.id}`);
+                    if (lock != null) try{await lock.unlock();}catch(ex){console.error(ex);}
                 }
-                
-            } catch (ex) {
-                console.error(`Error waiting for lock in orderHandler for order ${dataOrder.id} for instance ${strategyInstance.id} try to repeat`, ex)
-            } finally {
-                console.log(`Lock released in orderHandler for order ${dataOrder.id} for instance ${strategyInstance.id}`);
-                if (lock != null) try{await lock.unlock();}catch(ex){console.error(ex);}
             }
 
         }
@@ -101,7 +126,7 @@ exports.orderHandler = async function (redlock, myOrderSenderQueue, accountId, d
         include: [models.Account.AccountType, models.Account.Exchange]
     });
     if (account == null) {
-        console.log("Account does not exist when receiving a balance event: ", accountId);
+        console.log("BalanceHandler: Account does not exist when receiving a balance event: ", accountId);
         return;
     }
 
@@ -133,7 +158,7 @@ exports.orderHandler = async function (redlock, myOrderSenderQueue, accountId, d
         }
 
         console.log(
-            "Received a balance for this account that not belong to this accountType: ",
+            "BalanceHandler: received a balance for this account that not belong to this accountType: ",
             accountType,
             account.account_type.account_type
         );

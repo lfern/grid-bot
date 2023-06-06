@@ -20,23 +20,23 @@ let instanceAccRepository = new InstanceAccountRepository();
 exports.orderSenderWorker = function (myOrderSenderQueue, redlock) {
     return async (job, done) => {
         let grid = job.data;
-        console.log("Sending next order for Grid:", grid);
+        console.log("OrderSenderWorker: sending next order for Grid ", grid);
         let lock = null;
         try {
             // Lock grid
-            console.log(`Try to acquire lock in orderSenderWorker for instance ${grid}`);
+            console.log(`OrderSenderWorker: try to acquire lock in orderSenderWorker for instance ${grid}`);
             lock = await redlock.acquire(['grid-instance-' + grid], 15000);
 
-            console.log(`Lock acquired in orderSenderWorker for instance ${grid}`);
+            console.log(`OrderSenderWorker: lock acquired in orderSenderWorker for instance ${grid}`);
             // Get next order to send
             let instance = await instanceRepository.getInstance(grid);
             if (instance == null) {
-                console.log("Instance not found when trying to send order for grid", grid);
+                console.log("OrderSenderWorker: instance not found when trying to send order for grid", grid);
                 return;
             }
 
             if (instance.running == false) {
-                console.log("Instance not running when trying to send next order", grid);
+                console.log("OrderSenderWorker: instance not running when trying to send next order", grid);
                 return;
             }
 
@@ -56,7 +56,7 @@ exports.orderSenderWorker = function (myOrderSenderQueue, redlock) {
             let gridManager = new GridManager(exchange, instance.id, strategy)
             let gridInstance = await gridManager.getNextOrderToSend();
             if (gridInstance == null) {
-                console.log("All orders sent for instance ", instance.id);
+                console.log("OrderSenderWorker: all orders sent for instance ", instance.id);
                 return;
             }
                     
@@ -71,10 +71,11 @@ exports.orderSenderWorker = function (myOrderSenderQueue, redlock) {
                     gridInstance.price
                 );
             } catch (ex) {
-                console.log("Error sending order. TODO: check error", ex);
+                console.log("OrderSenderWorker: error sending order. TODO: check error", ex);
                 return;
             }
 
+            console.log(`OrderSenderWorker: creating order in database: ${order.id} ${order.symbol} ${order.side} ${order.status}`);
             // update order id in grid
             await models.sequelize.transaction(async (transaction)=> {
                 gridInstance.active = true;
@@ -89,6 +90,7 @@ exports.orderSenderWorker = function (myOrderSenderQueue, redlock) {
                     transaction
                 );
             });
+            console.log(`OrderSenderWorker: created order in database: ${order.id} ${order.symbol} ${order.side} ${order.status}`);
 
             
             // send message to next order (maybe we could check if any is pending)
@@ -97,21 +99,25 @@ exports.orderSenderWorker = function (myOrderSenderQueue, redlock) {
                 removeOnComplete: true,
                 removeOnFail: true,
             };
-
+            
+            console.log("OrderSenderWorker: send order sender event, after order sent:", instance.id);
             myOrderSenderQueue.add(grid, options).then(ret => {
-                console.log("Redis added:", ret);
+                console.log("OrderSenderWorker: redis added order sender event, after order sent:", instance.id);
             }). catch(err => {
                 console.error("Error:", err);
             });
 
         } catch (ex) {
-            console.error("Error processing send order event:", ex);
+            console.error(`OrderSenderWorker: error processing send order event for instance ${grid}:`, ex);
+            return;
         } finally {
-            console.log(`Lock released in orderSenderWorker for instance ${grid}`);
+            console.log(`OrderSenderWorker lock released in orderSenderWorker for instance ${grid}`);
             if (lock != null) try{await lock.unlock();}catch(ex){console.error(ex);}
             done(null, { message: "send order executed" });
         }
+
         
+    
         
     };
 }

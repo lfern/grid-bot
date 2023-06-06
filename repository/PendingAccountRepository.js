@@ -5,6 +5,19 @@ const { BaseExchangeCcxtOrder } = require('../src/crypto/exchanges/ccxt/BaseExch
 /** @typedef {import('../src/crypto/exchanges/BaseExchangeTrade').BaseExchangeTrade} BaseExchangeTrade */
 
 class PendingAccountRepository {
+    async setDelayed(accountId, order, delayed = false) {
+        await models.AccountPendingOrder.update({
+            delayed: delayed
+        }, {
+            where: {
+                account_id: accountId,
+                symbol: order.symbol,
+                order_id: order.id    
+            }
+        });
+
+    }
+    
     /**
      * Add order to account pending orders
      * 
@@ -117,12 +130,25 @@ class PendingAccountRepository {
         return await models.AccountPendingOrder.findAll(options);
     }
 
-    async removeNotFoundOrdersOlderThan(seconds) {
-        return await models.AccountPendingOrder.destroy({
+    async removeNotFoundOrdersOlderThan(seconds, transaction = null) {
+        const options = {
             where: {
                 delayed: false,
-                timestamp: {[models.Sequelize.Op.lte]: new Date(Date.now() - (seconds*1000))}
-            }
+                createdAt: {[models.Sequelize.Op.lte]: new Date(Date.now() - (seconds*1000))}
+            },
+            transaction,
+        };
+
+        return await models.AccountPendingOrder.destroy(options);
+    }
+
+    async removeOrder(accountId, order) {
+        return await models.AccountPendingOrder.destroy({
+            where: {
+                account_id: accountId,
+                symbol: order.symbol,
+                order_id: order.id    
+            },
         })
     }
 }

@@ -1,6 +1,6 @@
 const Queue = require("bull");
 require('dotenv').config();
-const {logger, captureConsoleLog} = require("./src/utils/logger");
+const {initLogger, captureConsoleLog} = require("./src/utils/logger");
 const { balanceWorker } = require('./src/workers/balance-worker');
 const { orderWorker } = require('./src/workers/order-worker');
 const { tradeWorker } = require('./src/workers/trade-worker');
@@ -14,6 +14,11 @@ const { broadcastWorkerPromise } = require("./src/workers/broadcast-worker");
 /** @typedef {import('./src/grid/exchange-events').TradeDataEvent} TradeDataEvent */
 /** @typedef {import('./src/grid/exchange-events').OrderDataEvent} OrderDataEvent */
 /** @typedef {import('./src/grid/exchange-events').BalanceDataEvent} BalanceDataEvent */
+
+initLogger(
+    process.env.LOGGER_SERVICE_ALL_FILE || 'logs/service-all.log' ,
+    process.env.LOGGER_SERVICE_ERROR_FILE || 'logs/service-error.log',
+);
 
 captureConsoleLog();
 
@@ -102,13 +107,16 @@ myOrderSenderQueue.process(orderSenderWorker(myOrderSenderQueue, redlock));
 const promises = [
     startStopProcessPromise(redlock, myOrderSenderQueue),
     recoverOrdersWorkerPromise(myOrdersQueue),
-    broadcastWorkerPromise(),
+//    broadcastWorkerPromise(),
 ];
 
 Promise.race(promises.map(x => x.promise))
-    .then(res => promises.forEach(x => x.cancel()))
+    .then(res => {
+        console.error("One process has finished, stopping all");
+        promises.forEach(x => x.cancel())
+    })
     .catch(ex => {
-        console.log("Error waiting processes: ", ex);
+        console.error("Error waiting processes: ", ex);
         promises.forEach(x => x.cancel());
     });
 

@@ -42,7 +42,17 @@ class InstanceAccountRepository {
             remaining: order.remaining,
         }, transaction != null ?{transaction}:{})
     }
-
+    
+    async getOrder(accountId, order) {
+        await models.StrategyInstanceOrder.findOne({
+            where: {
+                account_id: accountId,
+                symbol: order.symbol,
+                exchange_order_id: order.id
+            },
+        });
+    }
+    
     /**
      * 
      * @param {string} accountId 

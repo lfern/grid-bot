@@ -37,7 +37,7 @@ class BaseExchangeCcxt extends BaseExchange {
         } 
 
         let ccxtOptions = _.pickBy({
-            verbose: true,//this.params.verbose,
+            verbose: this.params.verbose,
             exchangeType: this.params.exchangeType,
             apiKey: this.params.apiKey,
             secret: this.params.secret,

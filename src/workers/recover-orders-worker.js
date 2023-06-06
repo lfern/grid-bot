@@ -24,7 +24,7 @@ exports.recoverOrdersWorkerPromise = function(myOrdersQueue) {
                 
                 // remove 5 minutes old orders
                 let removed = await pendingAccountRepository.removeNotFoundOrdersOlderThan(5 * 60);
-                console.log("Removed ...", removed);
+                console.log("RecoverOrdersWorker: removed orders ", removed);
     
                 await models.sequelize.transaction(async (transaction) =>{
                     let dbOrders = await pendingAccountRepository.getOldestOrders(50, 5, true, transaction);
@@ -33,22 +33,24 @@ exports.recoverOrdersWorkerPromise = function(myOrdersQueue) {
                         return;
                     }
     
-                    console.log(`Recover ${rows} pending orders ....`);
+                    console.log(`RecoverOrdersWorker: recover ${rows} pending orders ....`);
     
                     for(let i=0; i<rows; i++) {
                         let dbOrder = dbOrders[i];
-                        console.log(`account: ${dbOrder.account_id} ${dbOrder.order_id}`);
+                        console.log(`RecoverOrdersWorker: account ${dbOrder.account_id} ${dbOrder.order_id}`);
+                        console.log(`RecoverOrdersWorker: send order sender event after order recovered ${dbOrder.account_id} ${dbOrder.order_id}`);
                         myOrdersQueue.add({
                             account: dbOrder.account_id,
                             order: dbOrder.order,
-                            recovered: true,
+                            delayed: dbOrder.delayed,
                         }, options).then(ret => {
-                            // console.log(ret);
+                            console.log(`RecoverOrdersWorker: redis added order sender event after order recovered ${dbOrder.account_id} ${dbOrder.order_id} ${ret.data.delayed}`);
                         }). catch(err => {
-                            console.error("Error:", err);
+                            console.error("RecoverOrdersWorker:", err);
                         });
                         // don't delete , just update updatedAt
-                        await dbOrder.destroy({transaction})
+                        dbOrder.changed('updatedAt', true);
+                        await dbOrder.update({updatedAt: new Date()}, {transaction})
                     }
                 })
     
@@ -58,7 +60,7 @@ exports.recoverOrdersWorkerPromise = function(myOrdersQueue) {
                 }
     
             } catch (ex) {
-                console.log("Error:", ex);
+                console.log("RecoverOrdersWorker:", ex);
                 await sleep(5000);
             }
             

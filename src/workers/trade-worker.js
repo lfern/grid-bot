@@ -7,13 +7,13 @@ exports.tradeWorker = async (job, done) => {
     /** @type {TradeDataEvent} */
     let data = job.data;
     let dataTrade = BaseExchangeCcxtTrade.fromJson(data.trade);
-    console.log("Trade: ", data);
+    console.log(`TradeWorker: received trade ${dataTrade.id} ${dataTrade.side} ${dataTrade.symbol} ${dataTrade.order}`);
     try {
         let instanceAccountRepository = new InstanceAccountRepository();
         instanceAccountRepository.createTrade(data.account, dataTrade);
         // TODO: check if all trades has completed the order ?
     } catch (ex) {
-        console.error("Error", ex);
+        console.error("TradeWorker:", ex);
     }
     done(null, { message: "trade executed" });
 };

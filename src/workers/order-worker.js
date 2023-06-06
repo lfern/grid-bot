@@ -14,12 +14,14 @@ exports.orderWorker = function(redlock, myOrderSenderQueue) {
         /** @type {OrderDataEvent} */
         let data = job.data;
         let dataOrder = BaseExchangeCcxtOrder.fromJson(data.order);
-        console.log("Order:", data);
-
+        let delayed = data.delayed;
+        let fromExchangeStr = delayed === undefined ? 'not-recovered' : 'recovered';
+        let delayedStr = delayed === undefined ? 'delayed-n/a' : (delayed?'delayed':'not-delayed');
+        console.log(`OrderWorker: received order ${dataOrder.id} ${dataOrder.status} ${dataOrder.side} ${dataOrder.symbol} ${fromExchangeStr} ${delayedStr}`);
         try {
-            await orderHandler(redlock, myOrderSenderQueue, data.account, dataOrder);
+            await orderHandler(redlock, myOrderSenderQueue, data.account, dataOrder, delayed);
         } catch (ex) {
-            console.error("Error", ex);
+            console.error("OrderWorker:", ex);
         }
 
         done(null, { message: "order executed" });

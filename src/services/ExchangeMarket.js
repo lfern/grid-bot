@@ -41,7 +41,8 @@ const getExchangeInternalMarketsInfo = async function(exchangeId, accountTypeId,
             });
 
             await exchange.loadMarkets();
-            exchangeMarket.markets = exchange.getInternalMarketsInfo();
+            let markets = exchange.getInternalMarketsInfo();
+            exchangeMarket.markets = markets;
             exchangeMarket.markets_updated_at = models.Sequelize.fn('NOW');
             await exchangeMarket.save();
             return markets;

@@ -18,6 +18,7 @@ const {watchMyTrades, watchMyBalance, watchMyOrders} = require('../crypto/exchan
  * @typedef {Object} OrderDataEvent
  * @property {string} account
  * @property {BaseExchangeOrder} order
+ * @property {boolean} [delayed]
  */
 
 /**
@@ -46,14 +47,14 @@ exports.tradeEventHandler = function(account, exchange, queue) {
         // send to redis
         for(let i=0;i<trades.length;i++) {
             let trade = trades[i];
-            console.log(trade);
+            console.log(`TradeEventHandler: received trade ${trade.id} ${trade.side} ${trade.symbol} ${trade.order}`);
             queue.add({
                 account: account,
                 trade: trade.toJson()
             }, options).then(ret => {
-                console.log("Redis added:", ret);
+                console.log(`TradeEventHandler: redis added trade ${trade.id} ${trade.side} ${trade.symbol} ${trade.order}`);
             }). catch(err => {
-                console.error("Error:", err);
+                console.error("TradeEventHandler:", err);
             });
         }
 
@@ -78,14 +79,14 @@ exports.orderEventHandler = function(account, exchange, queue) {
         for(let i=0;i<orders.length;i++) {
             let order = orders[i];
             // send to redis
-            console.info(order);
+            console.log(`OrderEventHandler: received order ${order.id} ${order.status} ${order.side} ${order.symbol}`);
             queue.add({
                 account: account,
                 order: order.toJson(),
             }, options).then(ret => {
-                console.log("Redis added: ", ret);
+                console.log(`OrderEventHandler: redis added order ${order.id} ${order.status} ${order.side} ${order.symbol}`);
             }). catch(err => {
-                console.error("Error", err);
+                console.error("OrderEventHandler:", err);
             });
         }
     });
@@ -106,14 +107,15 @@ exports.balanceEventHandler = function(account, exchange, queue, accountType = u
             removeOnFail: true,
         };
 
-        console.info(balance, accountType);
+        console.log(`BalanceEventHandler: balanced received ${account} ${accountType}`);
         // send to redis
         queue.add({
             account: account,
             balance: balance,
             accountType: accountType,
         }, options).then(ret => {
-            console.log("Redis added:", ret);
+            console.log(`BalanceEventHandler: redis added balance ${account} ${accountType}`);
+
         }). catch(err => {
             console.error("Error:", err);
         });

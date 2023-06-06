@@ -9,7 +9,12 @@ const {
 
 const {exchangeInstance} = require('./src/crypto/exchanges/exchanges');
 const models = require('./models');
-const {logger, captureConsoleLog} = require("./src/utils/logger");
+const {initLogger, captureConsoleLog} = require("./src/utils/logger");
+
+initLogger(
+    process.env.LOGGER_SERVICE_ALL_FILE || 'logs/events-all.log' ,
+    process.env.LOGGER_SERVICE_ERROR_FILE || 'logs/events-error.log',
+);
 
 captureConsoleLog();
 

@@ -75,7 +75,7 @@ exports.startGrids = async function(redlock, myOrderSenderQueue, isCancelled) {
                 // Create grid in db
                 let currentPrice = await exchange.fetchCurrentPrice(strategy.symbol);
                 if (currentPrice == null) {
-                    console.error("Could not get current price from exchange")
+                    console.error("StartGrids: could not get current price from exchange")
                     return;
                 }
 
@@ -99,16 +99,16 @@ exports.startGrids = async function(redlock, myOrderSenderQueue, isCancelled) {
                 };
 
                 myOrderSenderQueue.add(instance.id, options).then(ret => {
-                    console.log("Redis added:", ret);
+                    console.log("StartGrids: redis added grid update on creation:", ret.data.id);
                 }). catch(err => {
-                    console.error("Error:", err);
+                    console.error("StartGrids:", err);
                 });
             } catch (ex) {
-                console.error("Error:", ex);
+                console.error("StartGrids:", ex);
             }
         }
     } catch (ex){
-        console.error("Error:", ex);
+        console.error("StartGrids:", ex);
     }
 }
 
@@ -161,7 +161,7 @@ exports.stopGrids = async function(isCancelled) {
                 let position = await getPosition(exchange, strategy.symbol, account.account_type.account_type);
                 let currentPrice = await exchange.fetchCurrentPrice(strategy.symbol);
                 // stop grid in db
-                models.StrategyInstanceEvent.create({
+                await models.StrategyInstanceEvent.create({
                     strategy_instance_id: instance.id,
                     event: 'GridStop',
                     message: 'Grid stopped',
@@ -174,11 +174,11 @@ exports.stopGrids = async function(isCancelled) {
                 });
                 // TODO: cancel orders?
             } catch (ex) {
-                console.error("Error:", ex);
+                console.error("StopGrids:", ex);
             }
         }
     } catch (ex) {
-        console.error("Error:", ex);
+        console.error("StopGrids:", ex);
     }
 }
 
