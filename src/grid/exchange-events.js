@@ -43,11 +43,17 @@ exports.tradeEventHandler = function(account, exchange, queue) {
             removeOnComplete: true,
             removeOnFail: true,
         };
-
+        
+        let symbols = exchange.symbols;
         // send to redis
         for(let i=0;i<trades.length;i++) {
             let trade = trades[i];
-            console.log(`TradeEventHandler: received trade ${trade.id} ${trade.side} ${trade.symbol} ${trade.order}`);
+            if (!symbols.includes(order.symbol)) {
+                console.log(`TradeEventHandler: received trade (other account - DISCARD) ${account} ${trade.id} ${trade.side} ${trade.symbol} ${trade.order}`);
+                continue;
+            }
+
+            console.log(`TradeEventHandler: received trade ${account} ${trade.id} ${trade.side} ${trade.symbol} ${trade.order}`);
             queue.add({
                 account: account,
                 trade: trade.toJson()
