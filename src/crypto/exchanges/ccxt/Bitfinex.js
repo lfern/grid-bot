@@ -6,12 +6,12 @@ const {BaseExchangeCcxtPosition} = require("./BaseExchangeCcxtPosition");
 const marketsFilter = {
     "paper" : {
         "spot": ([k, v]) => k.startsWith('TEST') && v.spot,
-        "futures": ([k, v]) => k.startsWith('TEST') && v.swap,
+        "future": ([k, v]) => k.startsWith('TEST') && v.swap,
         "funding": ([k, v]) => false,
     },
     "real": {
         "spot": ([k, v]) => !k.startsWith('TEST') && v.spot,
-        "futures": ([k, v]) => !k.startsWith('TEST') && v.swap,
+        "future": ([k, v]) => !k.startsWith('TEST') && v.swap,
         "funding": ([k, v]) => false,
     }
 };
@@ -29,6 +29,10 @@ class Bitfinex extends BaseExchangeCcxt {
     async getMarkets() {
         let markets = await super.getMarkets();
         let filter = marketsFilter[this.params.paper?'paper':'real'][this.params.exchangeType];
+        if (filter == null) {
+            filter = ([k, v]) => false;
+        }
+
         return Object.fromEntries(Object.entries(markets).filter(filter));
     }
 
@@ -65,6 +69,9 @@ class Bitfinex extends BaseExchangeCcxt {
     /** @inheritdoc */
     get markets() {
         let filter = marketsFilter[this.params.paper?'paper':'real'][this.params.exchangeType];
+        if (filter == null) {
+            filter = ([k, v]) => false;
+        }
         return Object.fromEntries(Object.entries(this.ccxtExchange.markets).filter(filter));
     }    
 
