@@ -209,6 +209,12 @@ class BaseExchangeCcxt extends BaseExchange {
     }
 
     /** @inheritdoc */
+    get symbols() {
+        return Object.keys(this.ccxtExchange.markets);
+    }
+
+
+    /** @inheritdoc */
     async transfer(code, amount, fromAccount, toAccount) {
         await this.ccxtExchange.transfer(code, amount, fromAccount, toAccount);
     }

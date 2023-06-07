@@ -205,6 +205,14 @@ class BaseExchange {
 
     /**
      * 
+     */
+    get symbols() {
+        throw new Error("Not implemented")
+    }
+    
+
+    /**
+     * 
      * @param {string} code 
      * @param {float} amount 
      * @param {string} fromAccount 

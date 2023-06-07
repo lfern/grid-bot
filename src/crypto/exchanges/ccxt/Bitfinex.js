@@ -3,6 +3,19 @@ const {BaseExchangeCcxtPosition} = require("./BaseExchangeCcxtPosition");
 
 /** @typedef {import('../BaseExchange').ExchangeOptions} ExchangeOptions */
 
+const marketsFilter = {
+    "paper" : {
+        "spot": ([k, v]) => k.startsWith('TEST') && v.spot,
+        "futures": ([k, v]) => k.startsWith('TEST') && v.swap,
+        "funding": ([k, v]) => false,
+    },
+    "real": {
+        "spot": ([k, v]) => !k.startsWith('TEST') && v.spot,
+        "futures": ([k, v]) => !k.startsWith('TEST') && v.swap,
+        "funding": ([k, v]) => false,
+    }
+};
+
 class Bitfinex extends BaseExchangeCcxt {
     /**
      * 
@@ -15,12 +28,8 @@ class Bitfinex extends BaseExchangeCcxt {
     /** @inheritdoc */
     async getMarkets() {
         let markets = await super.getMarkets();
-
-        if (this.params.paper) {
-            return Object.fromEntries(Object.entries(markets).filter(([k,v]) => k.startsWith('TEST')));
-        } else {
-            return Object.fromEntries(Object.entries(markets).filter(([k,v]) => !k.startsWith('TEST')));
-        }
+        let filter = marketsFilter[this.params.paper?'paper':'real'][this.params.exchangeType];
+        return Object.fromEntries(Object.entries(markets).filter(filter));
     }
 
     /** @inheritdoc */
@@ -50,16 +59,13 @@ class Bitfinex extends BaseExchangeCcxt {
 
     /** @inheritdoc */
     getWalletNames() {
-        return ['spot', 'margin', 'future'];
+        return ['spot', 'funding', 'future'];
     }
 
     /** @inheritdoc */
     get markets() {
-        if (this.params.paper) {
-            return Object.fromEntries(Object.entries(this.ccxtExchange.markets).filter(([k,v]) => k.startsWith('TEST')));
-        } else {
-            return Object.fromEntries(Object.entries(this.ccxtExchange.markets).filter(([k,v]) => !k.startsWith('TEST')));
-        }
+        let filter = marketsFilter[this.params.paper?'paper':'real'][this.params.exchangeType];
+        return Object.fromEntries(Object.entries(this.ccxtExchange.markets).filter(filter));
     }    
 
     /** @inheritdoc */
@@ -67,7 +73,6 @@ class Bitfinex extends BaseExchangeCcxt {
         accountType = accountType != undefined ? accountType : this.params.exchangeType;
         return await this.ccxtExchange.watchBalance({wallet: accountType == 'spot' ? 'exchange':'margin'});
     }
-
 }
 
 module.exports = { Bitfinex }

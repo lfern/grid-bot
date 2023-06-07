@@ -75,11 +75,17 @@ exports.orderEventHandler = function(account, exchange, queue) {
             removeOnComplete: true,
             removeOnFail: true,
         };
-        
+
+        let symbols = exchange.symbols;
         for(let i=0;i<orders.length;i++) {
             let order = orders[i];
             // send to redis
-            console.log(`OrderEventHandler: received order ${order.id} ${order.status} ${order.side} ${order.symbol}`);
+            if (!symbols.includes(order.symbol)) {
+                console.log(`OrderEventHandler: received order (other account - DISCARD) ${account} ${order.id} ${order.status} ${order.side} ${order.symbol}`);
+                continue;
+            }
+            
+            console.log(`OrderEventHandler: received order ${account} ${order.id} ${order.status} ${order.side} ${order.symbol}`);
             queue.add({
                 account: account,
                 order: order.toJson(),
