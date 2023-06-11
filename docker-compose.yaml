@@ -27,8 +27,6 @@ services:
       - REDIS_SERVER=${REDIS_SERVER:-127.0.0.1}
       - REDIS_PORT=${REDIS_PORT:-6379}
       - REDIS_PASSWORD=${REDIS_PASSWORD:-}
-      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
-      - TELEGRAM_BOT_URL=${TELEGRAM_BOT_URL:-https://t.me/GridBotTestBot}
     volumes:
       # - .:/usr/src/app
       # - /usr/src/app/node_modules
@@ -73,9 +71,9 @@ services:
     #command: ./wait-for.sh db:27017 -- /home/node/app/node_modules/.bin/nodemon app.js
     command: npm run start-trading-service
 
-  telegram-bot:
+  notification-service:
     image: grid-bot-nodejs
-    container_name: telegram-bot
+    container_name: notification-service
     restart: unless-stopped
     environment:
       - POSTGRES_USERNAME=${POSTGRES_USERNAME:-postgres}
@@ -107,7 +105,7 @@ services:
     networks:
       - app-network
     #command: ./wait-for.sh db:27017 -- /home/node/app/node_modules/.bin/nodemon app.js
-    command: npm run start-trading-service
+    command: npm run start-notification-service
 
   postgres:
     image: postgres:14.1-alpine
