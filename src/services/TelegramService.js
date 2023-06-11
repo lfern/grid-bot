@@ -3,6 +3,40 @@ const _ = require('lodash');
 
 const url = 'https://api.telegram.org/bot';
 
+class TelegramException  extends Error {
+    constructor(message, code) {
+      super(message);
+      this.code = code; 
+      this.name = "TelegramException";
+    }
+}
+
+class TelegramInvalidParamsError extends TelegramException {
+    constructor(message, code) {
+      super(message, code); 
+      this.name = "TelegramInvalidParamsException";
+    }
+}
+
+class TelegramForbiddenException  extends TelegramException {
+    constructor(message, code) {
+      super(message, code); 
+      this.name = "TelgramForbiddenException";
+    }
+}
+
+const parseResponse = function(code, body) {
+    let error = `HTTP status code ${code} ${body}`;
+    if (code == 400) {
+        return new TelegramInvalidParamsError(error, code);
+    } else if (code == 403) {
+        return new TelegramForbiddenException(error, code);
+    } else {
+        return new TelegramException(error, code);
+    }
+}
+
+
 exports.getUpdates = function(token, offset) {
     return new Promise((resolve, reject) => {
         let parsedUrl = new URL(`${url}${token}/getUpdates${offset!=undefined?'?offset='+offset:''}`);
@@ -21,7 +55,7 @@ exports.getUpdates = function(token, offset) {
                 const resString = Buffer.concat(body).toString();
                 if (res.status < 200 || res.statusCode > 299) {
                     console.error(resString);
-                    reject(new Error(`HTTP status code ${res.statusCode} ${resString}`));
+                    reject(parseResponse(res.statusCode, resString));
                 } else {
                     resolve(resString);
                 }
@@ -66,9 +100,9 @@ exports.sendMessage = function(token, chatId, message) {
             res.on('data', (chunk) => body.push(chunk))
             res.on('end', () => {
                 const resString = Buffer.concat(body).toString();
-                if (res.status < 200 || res.statusCode > 299) {
+                if (res.statusCode < 200 || res.statusCode > 299) {
                     console.error(resString);
-                    reject(new Error(`HTTP status code ${res.statusCode} ${resString}`));
+                    reject(parseResponse(res.statusCode, resString));
                 } else {
                     resolve(resString);
                 }
@@ -90,3 +124,7 @@ exports.sendMessage = function(token, chatId, message) {
     });
 
 }
+
+exports.TelegramException = TelegramException;
+exports.TelegramForbiddenException = TelegramForbiddenException;
+exports.TelegramInvalidParamsError = TelegramInvalidParamsError;
