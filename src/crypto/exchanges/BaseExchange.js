@@ -89,7 +89,36 @@ class BaseExchange {
      * @param {string | undefined} symbol 
      * @returns {BaseExchangeOrder}
      */
+    async fetchClosedOrder(id, symbol = undefined) {
+        throw new Error("NOT IMPLEMENTED");
+    }
+
+    /**
+     * 
+     * @param {string} id 
+     * @param {string | undefined} symbol 
+     * @returns {BaseExchangeOrder}
+     */
+    async fetchOpenOrder(id, symbol = undefined) {
+        throw new Error("NOT IMPLEMENTED");
+    }
+
+    /**
+     * 
+     * @param {string} id 
+     * @param {string | undefined} symbol 
+     * @returns {BaseExchangeOrder}
+     */
     async fetchOrder(id, symbol = undefined) {
+        throw new Error("NOT IMPLEMENTED");
+    }
+
+    /**
+     * 
+     * @param {string} id 
+     * @param {string} symbol 
+     */
+    async fetchOrderTrades(id, symbol) {
         throw new Error("NOT IMPLEMENTED");
     }
 

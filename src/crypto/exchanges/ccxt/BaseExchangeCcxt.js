@@ -107,11 +107,36 @@ class BaseExchangeCcxt extends BaseExchange {
         return trades[0].price;
     }
 
+    /** @inheritdoc  */
+    async fetchClosedOrder(id, symbol = undefined) {
+        return new BaseExchangeCcxtOrder(
+            await this.ccxtExchange.fetchClosedOrder(id, symbol)
+        );
+    }
+
+    /** @inheritdoc */
+    async fetchOpenOrder(id, symbol = undefined) {
+        return new BaseExchangeCcxtOrder(
+            await this.ccxtExchange.fetchOpenOrder(id, symbol)
+        );
+    }
+
     /** @inheritdoc */
     async fetchOrder(id, symbol = undefined) {
         return new BaseExchangeCcxtOrder(
             await this.ccxtExchange.fetchOrder(id, symbol)
         );
+    }
+
+    /** @inheritdoc */
+    async fetchOrderTrades(id, symbol) {
+        let trades = await this.ccxtExchange.fetchOrderTrades(id, symbol);
+        let newTrades = [];
+        trades.forEach(t => {
+            newTrades.push(new BaseExchangeCcxtTrade(t));
+        })
+
+        return newTrades;
     }
 
     /** @inheritdoc */
