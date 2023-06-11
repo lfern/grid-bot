@@ -6,13 +6,14 @@ const { exchangeInstance } = require('../crypto/exchanges/exchanges');
 const Redlock= require("redlock");
 const { InstanceRepository } = require('../../repository/InstanceRepository');
 const { InstanceAccountRepository } = require('../../repository/InstanceAccountingRepository');
+const { StrategyInstanceEventRepository, LEVEL_INFO } = require('../../repository/StrategyInstanceEventRepository');
 
 /** @typedef {import('../crypto/exchanges/BaseExchangeOrder').BaseExchangeOrder} BaseExchangeOrder */
 /** @typedef {import('ccxt').Balance} Balance */
 
 let instanceRepository = new InstanceRepository();
-let instanceAccRepository = new InstanceAccountRepository();
 let pendingAccountRepository = new PendingAccountRepository();
+let eventRepository = new StrategyInstanceEventRepository();
 
 /**
  * 
@@ -36,7 +37,7 @@ exports.orderHandler = async function (redlock, myOrderSenderQueue, accountId, d
     });
 
     if (order == null) {
-        console.error(`OrderHandler: order not found ${dataOrder.id} set delayed=false`);
+        console.error(`OrderHandler: order not found ${dataOrder.id} set delayed=false in ${accountId}`);
         // Save pending order for this account
         await pendingAccountRepository.setDelayed(accountId, dataOrder, false);
     } else {
@@ -78,7 +79,7 @@ exports.orderHandler = async function (redlock, myOrderSenderQueue, accountId, d
                             secret: account.api_secret,
                         });
         
-                        let gridCreator = new GridManager(exchange, strategyInstance.id, strategyInstance.strategy);
+                        let gridCreator = new GridManager(exchange, strategyInstance, strategyInstance.strategy);
                         let orderHandled = await gridCreator.handleOrder(dataOrder, delayed);
     
                         if (orderHandled != null) {
@@ -94,6 +95,15 @@ exports.orderHandler = async function (redlock, myOrderSenderQueue, accountId, d
                             }). catch(err => {
                                 console.error("OrderHandler:", err);
                             });
+
+                            await eventRepository.create(
+                                strategyInstance,
+                                'OrderExecuted',
+                                LEVEL_INFO,
+                                `Order executed: \n`+
+                                `${dataOrder.id} ${dataOrder.side} ${dataOrder.symbol} `+
+                                `${dataOrder.price}/${dataOrder.average} ${dataOrder.amount}/${dataOrder.filled}`
+                            );
                             
                             if (orderHandled.id != dataOrder.id) {
                                 retry = true;

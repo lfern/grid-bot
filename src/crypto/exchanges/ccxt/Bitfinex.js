@@ -72,6 +72,7 @@ class Bitfinex extends BaseExchangeCcxt {
         if (filter == null) {
             filter = ([k, v]) => false;
         }
+        console.log("filtering");
         return Object.fromEntries(Object.entries(this.ccxtExchange.markets).filter(filter));
     }    
 

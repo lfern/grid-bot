@@ -10,6 +10,7 @@ const { orderSenderWorker } = require("./src/workers/order-sender-worker");
 const { startStopProcessPromise } = require("./src/workers/start-stop-worker");
 const { recoverOrdersWorkerPromise } = require("./src/workers/recover-orders-worker");
 const { broadcastWorkerPromise } = require("./src/workers/broadcast-worker");
+const NotificationService = require('./src/services/NotificationService');
 
 /** @typedef {import('./src/grid/exchange-events').TradeDataEvent} TradeDataEvent */
 /** @typedef {import('./src/grid/exchange-events').OrderDataEvent} OrderDataEvent */
@@ -90,6 +91,10 @@ const myOrdersQueue = new Queue("myOrders", opts);
 const myBalanceQueue = new Queue("myBalance", opts);
 
 const myOrderSenderQueue = new Queue("myOrderSender", opts);
+
+const myNotificationQueue = new Queue("myNotification", opts);
+
+NotificationService.init(myNotificationQueue);
 
 // wait for trades from redis server
 myTradesQueue.process(tradeWorker);

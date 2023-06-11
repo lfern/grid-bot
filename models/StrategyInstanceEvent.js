@@ -42,21 +42,9 @@ module.exports = (sequelize, DataTypes) => {
             allowNull: false,
             type: DataTypes.JSONB,
         },
-        max_price: {
-            allowNull: true,
-            type:DataTypes.DECIMAL(30, 15)
-        },
-        min_price: {
-            allowNull: true,
-            type:DataTypes.DECIMAL(30, 15)
-        },
-        price: {
-            allowNull: true,
-            type:DataTypes.DECIMAL(30, 15)
-        },
-        position: {
-            allowNull: true,
-            type:DataTypes.DECIMAL(30, 15)
+        level: {
+            allowNull: false,
+            type: DataTypes.SMALLINT
         }
     }, {
         tableName: 'strategy_instance_events'

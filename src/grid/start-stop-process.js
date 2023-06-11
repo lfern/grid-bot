@@ -3,6 +3,7 @@ const { GridManager } = require('./grid');
 const { exchangeInstanceWithMarkets } = require('../services/ExchangeMarket');
 const Redlock = require("redlock");
 const { InstanceRepository } = require('../../repository/InstanceRepository');
+const { StrategyInstanceEventRepository, LEVEL_INFO } = require('../../repository/StrategyInstanceEventRepository');
 /** @typedef {import('bull').Queue} Queue} */
 
 /**
@@ -13,6 +14,7 @@ const { InstanceRepository } = require('../../repository/InstanceRepository');
  */
 
 let instanceRepository = new InstanceRepository();
+let eventRepository = new StrategyInstanceEventRepository();
 /**
  * 
  * @param {Redlock} redlock 
@@ -79,7 +81,7 @@ exports.startGrids = async function(redlock, myOrderSenderQueue, isCancelled) {
                     return;
                 }
 
-                let gridCreator = new GridManager(exchange, instance.id, strategy)
+                let gridCreator = new GridManager(exchange, instance, strategy)
                 let entries = gridCreator.createGridEntries(currentPrice);
                 await models.sequelize.transaction(async (transaction) => {
                     for (let i=0;i<entries.length;i++) {
@@ -90,6 +92,14 @@ exports.startGrids = async function(redlock, myOrderSenderQueue, isCancelled) {
                     }
 
                 });
+
+                await eventRepository.create(
+                    instance,
+                    'GridStart',
+                    LEVEL_INFO,
+                    'Grid started',
+                    await getPositionAndPrice(exchange, strategy.symbol, account.account_type.account_type)
+                );
 
                 // send message to next order (maybe we could check if any is pending)
                 const options = {
@@ -158,20 +168,15 @@ exports.stopGrids = async function(isCancelled) {
                 secret: account.api_secret,
             });
             try {
-                let position = await getPosition(exchange, strategy.symbol, account.account_type.account_type);
-                let currentPrice = await exchange.fetchCurrentPrice(strategy.symbol);
                 // stop grid in db
-                await models.StrategyInstanceEvent.create({
-                    strategy_instance_id: instance.id,
-                    event: 'GridStop',
-                    message: 'Grid stopped',
-                    params: {
-                        price: currentPrice,
-                        position: position,
-                    },
-                    price: currentPrice,
-                    position: position,
-                });
+                await eventRepository.create(
+                    instance,
+                    'GridStop',
+                    LEVEL_INFO,
+                    'Grid stopped',
+                    await getPositionAndPrice(exchange, strategy.symbol, account.account_type.account_type)
+                );
+
                 // TODO: cancel orders?
             } catch (ex) {
                 console.error("StopGrids:", ex);
@@ -180,6 +185,18 @@ exports.stopGrids = async function(isCancelled) {
     } catch (ex) {
         console.error("StopGrids:", ex);
     }
+}
+
+async function getPositionAndPrice(exchange, symbol, accountType) {
+    let position;
+    let price;
+    try {
+        position = await getPosition(exchange, symbol, accountType);
+        price = await exchange.fetchCurrentPrice(symbol);
+    } catch (ex) {
+        console.error(ex);
+    }
+    return {position, price};
 }
 
 async function getPosition(exchange, symbol, accountType) {

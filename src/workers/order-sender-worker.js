@@ -6,10 +6,12 @@ const { GridManager } = require('../grid/grid');
 const {exchangeInstanceWithMarkets} = require('../services/ExchangeMarket');
 const models = require('../../models');
 const { InstanceAccountRepository } = require('../../repository/InstanceAccountingRepository');
+const { StrategyInstanceEventRepository, LEVEL_ERROR } = require('../../repository/StrategyInstanceEventRepository');
 
 
 let instanceRepository = new InstanceRepository();
 let instanceAccRepository = new InstanceAccountRepository();
+let eventRepository = new StrategyInstanceEventRepository();
 
 /**
  * 
@@ -53,16 +55,19 @@ exports.orderSenderWorker = function (myOrderSenderQueue, redlock) {
             });
 
 
-            let gridManager = new GridManager(exchange, instance.id, strategy)
+            let gridManager = new GridManager(exchange, instance, strategy)
             let gridInstance = await gridManager.getNextOrderToSend();
             if (gridInstance == null) {
                 console.log("OrderSenderWorker: all orders sent for instance ", instance.id);
                 return;
             }
+
+            // TODO: check balance before send order
                     
             // send order
             let order;
             try {
+                console.log(`OrderSenderWorker: Sending order ${strategy.symbol} ${gridInstance.side} ${gridInstance.order_qty} ${gridInstance.price}`);
                 order = await exchange.createOrder(
                     strategy.symbol,
                     'limit',
@@ -71,7 +76,9 @@ exports.orderSenderWorker = function (myOrderSenderQueue, redlock) {
                     gridInstance.price
                 );
             } catch (ex) {
+                // TODO: check if error is about insufficient funds
                 console.log("OrderSenderWorker: error sending order. TODO: check error", ex);
+                await eventRepository.create(instance, 'OrderSendError', LEVEL_ERROR, ex.message);
                 return;
             }
 
@@ -82,7 +89,6 @@ exports.orderSenderWorker = function (myOrderSenderQueue, redlock) {
                 gridInstance.exchange_order_id = order.id;
                 await gridInstance.save({transaction});
             
-
                 await instanceAccRepository.createOrder(
                     instance.id,
                     strategy.account.id,

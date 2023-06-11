@@ -79,6 +79,7 @@ const removeAccount = function(account) {
                 if (!(id in currentConnections)) {
                     console.log('New account: ' + account.id);
                     const exchange = exchangeInstance(account.exchange.exchange_name, {
+                        paper: account.paper,
                         exchangeType: account.account_type.account_type,
                         rateLimit: 1000,  // testing 1 second though it is not recommended (I think we should not send too many requests/second)
                         apiKey: account.api_key,

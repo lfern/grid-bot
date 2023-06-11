@@ -46,6 +46,15 @@ module.exports = (sequelize, DataTypes) => {
         stop_requested_at: {
             allowNull: true,
             type: DataTypes.DATE
+        },
+        is_dirty: {
+            allowNull: false,
+            type: DataTypes.BOOLEAN,
+            defaultValue: false,
+        },
+        dirty_at: {
+            allowNull: true,
+            type: DataTypes.DATE
         }
     }, {
         tableName: 'strategy_instances'

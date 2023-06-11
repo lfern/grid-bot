@@ -42,6 +42,11 @@ exports.send = function(transactionRaw, testnet = false) {
         req.on('error', (e) => {
             reject(e);
         });
+
+        req.on('timeout', () => {
+            req.destroy()
+            reject(new Error('Request time out'))
+        });
         
         req.write(transactionRaw);
         req.end();
@@ -79,6 +84,11 @@ exports.get = function(txid, testnet = false) {
         
         req.on('error', (e) => {
             reject(e);
+        });
+
+        req.on('timeout', () => {
+            req.destroy()
+            reject(new Error('Request time out'))
         });
         
         req.end();

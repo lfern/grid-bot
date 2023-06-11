@@ -225,6 +225,7 @@ class BaseExchangeCcxt extends BaseExchange {
 
     /** @inheritdoc */
     get markets() {
+        console.log("Not filtering")
         return this.ccxtExchange.markets;
     }
 
@@ -235,7 +236,7 @@ class BaseExchangeCcxt extends BaseExchange {
 
     /** @inheritdoc */
     get symbols() {
-        return Object.keys(this.ccxtExchange.markets);
+        return Object.keys(this.markets);
     }
 
 

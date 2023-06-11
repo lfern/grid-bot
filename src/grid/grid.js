@@ -3,6 +3,7 @@ const _ = require('lodash');
 const models = require('../../models');
 const { InstanceAccountRepository } = require("../../repository/InstanceAccountingRepository");
 const { PendingAccountRepository } = require("../../repository/PendingAccountRepository");
+const {StrategyInstanceEventRepository, LEVEL_WARN, LEVEL_CRITICAL} = require('../../repository/StrategyInstanceEventRepository');
 
 /** @typedef {import('../crypto/exchanges/BaseExchange').BaseExchange} BaseExchange */
 /** @typedef {import('../crypto/exchanges/BaseExchangeOrder').BaseExchangeOrder} BaseExchangeOrder */
@@ -12,25 +13,26 @@ class GridManager {
     /**
      * 
      * @param {BaseExchange} exchange 
+     * @param {*} isntance 
      * @param {*} strategy 
-     * @param {*} currentPrice 
      */
-    constructor(exchange, instanceId, strategy) {
+    constructor(exchange, instance, strategy) {
         this.exchange = exchange;
-        this.instanceId = instanceId;
+        this.instance = instance;
         this.strategy = strategy;
         this.currentPosition = new BigNumber(strategy.initial_position);
         this.step = new BigNumber(strategy.step);
         this.orderQty = new BigNumber(strategy.order_qty);
         this.instanceAccRepository = new InstanceAccountRepository();
         this.pendingAccountRepository = new PendingAccountRepository();
+        this.eventRepository = new StrategyInstanceEventRepository();
     }
 
     async getNextOrderToSend() {
         // get all grid entries orderes by buy id
         let gridEntries = await models.StrategyInstanceGrid.findAll({
             where: {
-                strategy_instance_id: this.instanceId,
+                strategy_instance_id: this.instance.id,
             },
             order: [
                 ['buy_order_id', 'ASC'],
@@ -44,12 +46,12 @@ class GridManager {
         for(let i=0; i<orders.length;i++) {
             let order = orders[i];
             if (order.exchange_order_id == null) {
-                console.log(`Pending order for grid ${this.instanceId}: buy order id ${order.buy_order_id} ${order.side} ${order.order_qty}`);
+                console.log(`Pending order for grid ${this.instance.id}: buy order id ${order.buy_order_id} ${order.side} ${order.order_qty}`);
                 return order;
             }
         }
 
-        console.log("No pending order for grid", this.instanceId);
+        console.log("No pending order for grid", this.instance.id);
         return null;
     }
 
@@ -80,7 +82,7 @@ class GridManager {
         let costEntry = this.exchange.priceToPrecision(symbol, cost.toFixed());
     
         let newGridEntry = {
-            strategy_instance_id: this.instanceId,
+            strategy_instance_id: this.instance.id,
             price: gridPriceEntry,
             buy_order_id: gridId,
             buy_order_qty: orderQtyEntry,
@@ -145,7 +147,19 @@ class GridManager {
     async cancelOrders(orders) {
         for (let i=0;i<orders.length;i++) {
             console.log(`Canceling order ${orders[i]} ${this.strategy.symbol}`);
-            await this.exchange.cancelOrder(orders[i],this.strategy.symbol);
+            try {
+                await this.exchange.cancelOrder(orders[i],this.strategy.symbol);
+            } catch (ex) {
+                this.instance.running = false;
+                this.instance.stopped_at = Date.now();
+                await this.instance.update({running: this.instance.running, stopped_at: this.instance.stopped_at});
+                await this.eventRepository.create(
+                    this.instance,
+                    'OrderCancelError',
+                    LEVEL_CRITICAL,
+                    `Couln't cancel order ${orders[i]}!!! Stopping grid instance: ${ex.message}`
+                );
+            }
         }
     }
 /*
@@ -170,7 +184,7 @@ class GridManager {
                     exchange_order_id: order.id,
                 }, {
                     where: {
-                        strategy_instance_id: this.instanceId,
+                        strategy_instance_id: this.instance.id,
                         active: false,
                         side: gridOrder.side,
                         buy_order_id: gridOrder.buy_order_id
@@ -179,7 +193,7 @@ class GridManager {
                 });
 
                 await this.instanceAccRepository.createOrder(
-                    this.instanceId,
+                    this.instance.id,
                     this.strategy.account.id,
                     order,
                     transaction);
@@ -188,6 +202,57 @@ class GridManager {
         }
     }
 */
+
+    /**
+     * 
+     * @param {boolean} dirty 
+     * @param {BaseExchangeOrder} order 
+     * @returns 
+     */
+    async setGridDirty(dirty, order) {
+        
+        let fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 3600); // five minutes ago
+        if (dirty && this.instance.is_dirty && this.instance.dirty_at != null && this.instance.dirty_at.getTime() < fiveMinutesAgo) {
+            this.instance.running = false;
+            this.instance.stopped_at = Date.now();
+            await this.instance.update({running: this.instance.running, stopped_at: this.instance.stopped_at});
+            await this.eventRepository.create(
+                this.instance, 'GridDirty',
+                LEVEL_CRITICAL,
+                `Grid dirty for more than 5 minutes. Stopping grid!!!`
+                );
+            return;
+        } 
+
+        if (this.instance.is_dirty != dirty) {
+            this.instance.is_dirty = dirty;
+            this.instance.dirty_at = dirty? new Date() : null;
+            await this.instance.update({
+                is_dirty: this.instance.is_dirty,
+                dirty_at: this.instance.dirty_at
+            });
+
+            if (dirty) {
+                console.log(`Grid dirty, order ${order.id} is not lowest buy or highest sell`);
+                await this.eventRepository.create(
+                    this.instance,
+                    'GridDirty',
+                    LEVEL_WARN,
+                    `Grid dirty, we handled an order that is not the lowest buy or the highest sell!!!. order Info:\n` +
+                    `${order.id} ${order.side} ${order.symbol}`
+                );
+            } else {
+                await this.eventRepository.create(
+                    this.instance,
+                    'GridClean',
+                    LEVEL_WARN,
+                    `Grid clean, we handled order: \n`+
+                    `${order.id} ${order.side} ${order.symbol}`
+                );
+            }
+        }
+    }
+
     /**
      * @param {BaseExchangeOrder} order 
      */
@@ -209,7 +274,7 @@ class GridManager {
             let orderInDb = this.instanceAccRepository.getOrder(this.strategy.account.id, order);
             if (orderInDb.status == 'closed') {
                 // still processed
-                console.log(`Order ${order.id} seems to be processed in ${this.instanceId}, so remove from pending`);
+                console.log(`Order ${order.id} seems to be processed in ${this.instance.id}, so remove from pending`);
                 await this.pendingAccountRepository.removeOrder(this.strategy.account.id, order);
             }
             return null;
@@ -232,7 +297,7 @@ class GridManager {
             // get all grid entries orderes by buy id
             let gridEntries = await models.StrategyInstanceGrid.findAll({
                 where: {
-                    strategy_instance_id: this.instanceId,
+                    strategy_instance_id: this.instance.id,
                 },
                 lock: transaction.LOCK.UPDATE,
                 transaction,
@@ -276,6 +341,7 @@ class GridManager {
                 if (indexHigherBuy != indexOrder) {
                     delayed = true;
                     console.error("buy order executed is not the higher buy in ther grid???");
+                    await this.setGridDirty(true, order);
                     return;
                 }
 
@@ -288,6 +354,7 @@ class GridManager {
                 if (indexLowerSell != indexOrder) {
                     delayed = true;
                     console.error("sell order executed is not the lower sell in ther grid???");
+                    await this.setGridDirty(true, order);
                     return;
                 }
 
@@ -303,6 +370,8 @@ class GridManager {
                     await gridEntries[i].save({transaction});
                 }
             }
+
+            await this.setGridDirty(false, order);
 
             gridEntriesRaw = gridEntries.map(x => x.get({ plain: true }));
             this._printGrid(gridEntriesRaw);

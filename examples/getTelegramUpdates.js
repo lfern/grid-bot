@@ -1,6 +1,6 @@
 const telegramService = require ('../src/services/TelegramService')
 require('dotenv').config();
-
+console.log( process.env.TELEGRAM_BOT_TOKEN)
 telegramService.getUpdates(
     process.env.TELEGRAM_BOT_TOKEN,
 ).then(res => {
