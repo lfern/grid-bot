@@ -117,7 +117,7 @@ exports.sendMessage = function(token, chatId, message) {
             req.destroy()
             reject(new Error('Request time out'))
         });
-        console.log(rawMessage)
+
         req.write(rawMessage);
 
         req.end();

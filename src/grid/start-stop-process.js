@@ -1,7 +1,6 @@
 const models = require('../../models');
 const { GridManager } = require('./grid');
 const { exchangeInstanceWithMarkets } = require('../services/ExchangeMarket');
-const Redlock = require("redlock");
 const { InstanceRepository } = require('../../repository/InstanceRepository');
 const { StrategyInstanceEventRepository, LEVEL_INFO } = require('../../repository/StrategyInstanceEventRepository');
 const OrderSenderEventService = require('../services/OrderSenderEventService');
@@ -18,11 +17,10 @@ let instanceRepository = new InstanceRepository();
 let eventRepository = new StrategyInstanceEventRepository();
 /**
  * 
- * @param {Redlock} redlock 
  * @param {CancelCallback} isCancelled 
  * @returns 
  */
-exports.startGrids = async function(redlock, isCancelled) {
+exports.startGrids = async function(isCancelled) {
     if (isCancelled()) return;
 
     try {
@@ -194,16 +192,13 @@ async function getPosition(exchange, symbol, accountType) {
     if (accountType == 'spot') {
         console.log('Fetching balance...');
         let balance = await exchange.fetchBalance();
-        console.log("Balance:", balance);
         let market = exchange.market(symbol);
-        console.log("Market: ", market);
         if (market != null) {
             position = balance.total[market.base];
         }
     } else {
         console.log('Fetching positions...');
         let positions = await exchange.fetchPositions(symbol);
-        console.log("Positions:", positions);
         if (positions.length > 0) {
             position = positions[0].contracts;
         }

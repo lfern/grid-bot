@@ -16,6 +16,7 @@ const OrderEventService = require("./src/services/OrderEventService");
 const GridNoFundsEventService = require("./src/services/GridNoFundsEventService");
 const GridDirtyEventService = require("./src/services/GridDirtyEventService");
 const CheckAccountDepositEventService = require("./src/services/CheckAccountDepositEventService");
+const LockService = require("./src/services/LockService");
 
 
 /** @typedef {import('./src/services/TradeEventService').TradeDataEvent} TradeDataEvent */
@@ -104,23 +105,23 @@ NotificationEventService.init(myNotificationQueue);
 GridNoFundsEventService.init(myGridNoFundsQueue);
 GridDirtyEventService.init(myGridDirtyQueue);
 CheckAccountDepositEventService.init(myCheckAccountDepositQueue);
-
+LockService.init(redlock);
 
 // wait for trades from redis server
 myTradesQueue.process(tradeWorker);
 
 // wait for orders from redis server
-myOrdersQueue.process(orderWorker(redlock));
+myOrdersQueue.process(orderWorker);
 
 // wait for balance from redis server
 myBalanceQueue.process(balanceWorker);
 
-myOrderSenderQueue.process(orderSenderWorker(redlock));
+myOrderSenderQueue.process(orderSenderWorker);
 
 // query database for start/stop grids
 
 const promises = [
-    startStopProcessPromise(redlock),
+    startStopProcessPromise(),
     recoverOrdersWorkerPromise(),
     broadcastWorkerPromise(),
 ];

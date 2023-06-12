@@ -3,12 +3,11 @@ const { PendingAccountRepository } = require('../../repository/PendingAccountRep
 const { GridManager } = require('./grid');
 const { exchangeInstanceWithMarkets } = require('../services/ExchangeMarket');
 const { exchangeInstance } = require('../crypto/exchanges/exchanges');
-const Redlock= require("redlock");
 const { InstanceRepository } = require('../../repository/InstanceRepository');
-const { InstanceAccountRepository } = require('../../repository/InstanceAccountingRepository');
 const { StrategyInstanceEventRepository, LEVEL_INFO } = require('../../repository/StrategyInstanceEventRepository');
 const OrderSenderEventService = require('../services/OrderSenderEventService');
 const gridDirtyEventService = require('../services/GridDirtyEventService');
+const LockService = require('../services/LockService');
 /** @typedef {import('../crypto/exchanges/BaseExchangeOrder').BaseExchangeOrder} BaseExchangeOrder */
 /** @typedef {import('ccxt').Balance} Balance */
 
@@ -18,12 +17,11 @@ let eventRepository = new StrategyInstanceEventRepository();
 
 /**
  * 
- * @param {Redlock} redlock 
  * @param {string} accountId 
  * @param {BaseExchangeOrder} dataOrder 
  * @param {boolean} delayed 
  */
-exports.orderHandler = async function (redlock, accountId, dataOrder, delayed) {
+exports.orderHandler = async function (accountId, dataOrder, delayed) {
     if (delayed === undefined) {
         console.log(`OrderHandler: Add order to pending (first time seen here) ${accountId} ${dataOrder.id} ${dataOrder.symbol} ${dataOrder.status}`);
         await pendingAccountRepository.addOrder(accountId, dataOrder);
@@ -59,13 +57,7 @@ exports.orderHandler = async function (redlock, accountId, dataOrder, delayed) {
                 console.log(`OrderHandler: try to acquire lock in orderHandler for order ${dataOrder.id} for instance ${strategyInstance.id}`);
                 let lock = null;
                 try {
-                    try {
-                        lock = await redlock.acquire(['grid-instance-' + strategyInstance.id], 15000);
-                    } catch (ex) {
-                        console.error(`OrderHandler: error waiting for lock in orderHandler for order ${dataOrder.id} for instance ${strategyInstance.id} try to repeat`, ex)
-                        // TODO: what to do with this order: save for latter?
-                    }   
-
+                    lock = await LockService.acquire(['grid-instance-' + strategyInstance.id], 15000);
                     console.log(`OrderHandler: Lock acquired in orderHandler for order ${dataOrder.id} for instance ${strategyInstance.id}`);
                     if (!strategyInstance.running) {
                         console.log(`OrderHandler: order received while grid is not running ${dataOrder.id}`);
@@ -176,5 +168,7 @@ exports.orderHandler = async function (redlock, accountId, dataOrder, delayed) {
             account.account_type.account_type
         );
     }
+
+    // 
 
  }

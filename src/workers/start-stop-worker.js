@@ -1,15 +1,13 @@
 const { cancelablePromise } = require("../crypto/exchanges/utils/procutils");
 const { stopGrids, startGrids } = require("../grid/start-stop-process");
 const {sleep} = require('../crypto/exchanges/utils/timeutils');
-const Redlock = require("redlock");
 /** @typedef {import('bull').Queue} Queue} */
 
 /**
  * 
- * @param {Redlock} redlock 
  * @returns 
  */
-exports.startStopProcessPromise = function(redlock) {
+exports.startStopProcessPromise = function() {
     return cancelablePromise(async (resolve, reject, signal) => {
         let cancelled = false;
 
@@ -21,7 +19,7 @@ exports.startStopProcessPromise = function(redlock) {
             while (!cancelled) {
                 await stopGrids(() => cancelled)
 
-                await startGrids(redlock, () => cancelled);
+                await startGrids(() => cancelled);
 
                 if (cancelled) break;
                 await sleep(10000);
