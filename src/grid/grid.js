@@ -210,7 +210,7 @@ class GridManager {
      * @returns 
      */
     async setGridDirty(dirty, order) {
-        
+        /* remove stop grid
         let fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 3600); // five minutes ago
         if (dirty && this.instance.is_dirty && this.instance.dirty_at != null && this.instance.dirty_at.getTime() < fiveMinutesAgo) {
             this.instance.running = false;
@@ -222,7 +222,8 @@ class GridManager {
                 `Grid dirty for more than 5 minutes. Stopping grid!!!`
                 );
             return;
-        } 
+        }
+        */
 
         if (this.instance.is_dirty != dirty) {
             this.instance.is_dirty = dirty;
