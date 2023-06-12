@@ -112,7 +112,7 @@ myOrderSenderQueue.process(orderSenderWorker(myOrderSenderQueue, redlock));
 const promises = [
     startStopProcessPromise(redlock, myOrderSenderQueue),
     recoverOrdersWorkerPromise(myOrdersQueue),
-//    broadcastWorkerPromise(),
+    broadcastWorkerPromise(),
 ];
 
 Promise.race(promises.map(x => x.promise))
