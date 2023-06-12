@@ -115,6 +115,11 @@ class BaseExchangeCcxt extends BaseExchange {
     }
 
     /** @inheritdoc */
+    async fetchDeposits(symbol = undefined, since = undefined, limit = undefined) {
+        return await this.ccxtExchange.fetchDeposits(symbol, since, limit);
+    }
+
+    /** @inheritdoc */
     async fetchOpenOrder(id, symbol = undefined) {
         return new BaseExchangeCcxtOrder(
             await this.ccxtExchange.fetchOpenOrder(id, symbol)
@@ -159,6 +164,16 @@ class BaseExchangeCcxt extends BaseExchange {
         })
 
         return newTrades;
+    }
+
+    /** @inheritdoc */
+    async fetchTransactions(symbol = undefined, since = undefined, limit = undefined) {
+        return await this.ccxtExchange.fetchTransactions(symbol, since, limit);
+    }
+
+    /** @inheritdoc */
+    async fetchWithdrawals(symbol = undefined, since = undefined, limit = undefined) {
+        return await this.ccxtExchange.fetchWithdrawals(symbol, since, limit);
     }
 
     /** @inheritdoc */

@@ -85,6 +85,17 @@ class BaseExchange {
 
     /**
      * 
+     * @param {string|undefined} symbol 
+     * @param {number|undefined} since 
+     * @param {number|undefined} limit 
+     * @returns 
+     */
+    async fetchDeposits(symbol = undefined, since = undefined, limit = undefined) {
+        throw new Error("Not implemented");
+    }
+
+    /**
+     * 
      * @param {string} id 
      * @param {string | undefined} symbol 
      * @returns {BaseExchangeOrder}
@@ -139,6 +150,22 @@ class BaseExchange {
      * @returns {[BaseExchangeTrade]}
      */
     async fetchTrades(symbol, since = undefined, limit = undefined) {
+        throw new Error("Not implemented");
+    }
+
+    /**
+     * 
+     * @param {string|undefined} symbol 
+     * @param {number|undefined} since 
+     * @param {number|undefined} limit 
+     * @returns 
+     */
+    async fetchTransactions(symbol = undefined, since = undefined, limit = undefined) {
+        throw new Error("Not implemented");
+    }
+
+    /** @inheritdoc */
+    async fetchWithdrawals(symbol = undefined, since = undefined, limit = undefined) {
         throw new Error("Not implemented");
     }
 
