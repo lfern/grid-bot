@@ -4,6 +4,7 @@ const { exchangeInstanceWithMarkets } = require('../services/ExchangeMarket');
 const Redlock = require("redlock");
 const { InstanceRepository } = require('../../repository/InstanceRepository');
 const { StrategyInstanceEventRepository, LEVEL_INFO } = require('../../repository/StrategyInstanceEventRepository');
+const OrderSenderEventService = require('../services/OrderSenderEventService');
 /** @typedef {import('bull').Queue} Queue} */
 
 /**
@@ -19,10 +20,9 @@ let eventRepository = new StrategyInstanceEventRepository();
  * 
  * @param {Redlock} redlock 
  * @param {CancelCallback} isCancelled 
- * @param {Queue} myOrderSenderQueue
  * @returns 
  */
-exports.startGrids = async function(redlock, myOrderSenderQueue, isCancelled) {
+exports.startGrids = async function(redlock, isCancelled) {
     if (isCancelled()) return;
 
     try {
@@ -102,17 +102,7 @@ exports.startGrids = async function(redlock, myOrderSenderQueue, isCancelled) {
                 );
 
                 // send message to next order (maybe we could check if any is pending)
-                const options = {
-                    attempts: 0,
-                    removeOnComplete: true,
-                    removeOnFail: true,
-                };
-
-                myOrderSenderQueue.add(instance.id, options).then(ret => {
-                    console.log("StartGrids: redis added grid update on creation:", ret.data.id);
-                }). catch(err => {
-                    console.error("StartGrids:", err);
-                });
+                OrderSenderEventService.send(instance.id);
             } catch (ex) {
                 console.error("StartGrids:", ex);
             }

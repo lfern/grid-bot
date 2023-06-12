@@ -1,4 +1,7 @@
 const {watchMyTrades, watchMyBalance, watchMyOrders} = require('../crypto/exchanges/utils/procutils');
+const TradeEventService = require('../services/TradeEventService');
+const OrderEventService = require('../services/OrderEventService');
+const BalanceEventService = require('../services/BalanceEventService');
 
 /** @typedef {import('../crypto/exchanges/BaseExchange').BaseExchange} BaseExchange */
 /** @typedef {import('../crypto/exchanges/BaseExchangeTrade').BaseExchangeTrade} BaseExchangeTrade */
@@ -7,43 +10,13 @@ const {watchMyTrades, watchMyBalance, watchMyOrders} = require('../crypto/exchan
 /** @typedef {import('bull').Queue} Queue */
 
 /**
- * TradeDataEvent type definitions
- * @typedef {Object} TradeDataEvent
- * @property {string} account
- * @property {BaseExchangeTrade} trade
- */
-
-/**
- * OrderDataEvent type definitions
- * @typedef {Object} OrderDataEvent
- * @property {string} account
- * @property {BaseExchangeOrder} order
- * @property {boolean} [delayed]
- */
-
-/**
- * BalanceDataEvent type definitions
- * @typedef {Object} BalanceDataEvent
- * @property {string} account
- * @property {Balance} balance
- * @property {string} accountType
- */
-
-/**
  * 
  * @param {string} account 
  * @param {BaseExchange} exchange 
- * @param {Queue} queue 
  * @returns 
  */
-exports.tradeEventHandler = function(account, exchange, queue) {
-    return watchMyTrades(exchange, undefined, (trades) => {
-        const options = {
-            attempts: 0,
-            removeOnComplete: true,
-            removeOnFail: true,
-        };
-        
+exports.tradeEventHandler = function(account, exchange) {
+    return watchMyTrades(exchange, undefined, (trades) => {        
         let symbols = exchange.symbols;
         // send to redis
         for(let i=0;i<trades.length;i++) {
@@ -54,14 +27,7 @@ exports.tradeEventHandler = function(account, exchange, queue) {
             }
 
             console.log(`TradeEventHandler: received trade ${account} ${trade.id} ${trade.side} ${trade.symbol} ${trade.order}`);
-            queue.add({
-                account: account,
-                trade: trade.toJson()
-            }, options).then(ret => {
-                console.log(`TradeEventHandler: redis added trade ${trade.id} ${trade.side} ${trade.symbol} ${trade.order}`);
-            }). catch(err => {
-                console.error("TradeEventHandler:", err);
-            });
+            TradeEventService.send(account, trade.toJson());
         }
 
     });
@@ -71,17 +37,10 @@ exports.tradeEventHandler = function(account, exchange, queue) {
  * 
  * @param {string} account 
  * @param {BaseExchange} exchange 
- * @param {Queue} queue 
  * @returns 
  */
-exports.orderEventHandler = function(account, exchange, queue) {
+exports.orderEventHandler = function(account, exchange) {
     return watchMyOrders(exchange, undefined, (orders) => {
-        const options = {
-            attempts: 0,
-            removeOnComplete: true,
-            removeOnFail: true,
-        };
-
         let symbols = exchange.symbols;
         for(let i=0;i<orders.length;i++) {
             let order = orders[i];
@@ -92,14 +51,7 @@ exports.orderEventHandler = function(account, exchange, queue) {
             }
 
             console.log(`OrderEventHandler: received order ${account} ${order.id} ${order.status} ${order.side} ${order.symbol}`);
-            queue.add({
-                account: account,
-                order: order.toJson(),
-            }, options).then(ret => {
-                console.log(`OrderEventHandler: redis added order ${order.id} ${order.status} ${order.side} ${order.symbol}`);
-            }). catch(err => {
-                console.error("OrderEventHandler:", err);
-            });
+            OrderEventService.send(account, order.toJson());
         }
     });
 };
@@ -108,29 +60,14 @@ exports.orderEventHandler = function(account, exchange, queue) {
  * 
  * @param {string} account 
  * @param {BaseExchange} exchange 
- * @param {Queue} queue 
+ * @param {string|undefined} accountType
  * @returns 
  */
-exports.balanceEventHandler = function(account, exchange, queue, accountType = undefined) {
+exports.balanceEventHandler = function(account, exchange, accountType = undefined) {
     return watchMyBalance(exchange, (balance, accountType) => {
-        const options = {
-            attempts: 0,
-            removeOnComplete: true,
-            removeOnFail: true,
-        };
-
         console.log(`BalanceEventHandler: balanced received ${account} ${accountType}`);
         // send to redis
-        queue.add({
-            account: account,
-            balance: balance,
-            accountType: accountType,
-        }, options).then(ret => {
-            console.log(`BalanceEventHandler: redis added balance ${account} ${accountType}`);
-
-        }). catch(err => {
-            console.error("Error:", err);
-        });
+        BalanceEventService.send(account, balance, accountType);
     }, accountType);
 };
 

@@ -1,6 +1,6 @@
 const { balanceHandler } = require("../grid/redis-events");
 
-/** @typedef {import("../grid/exchange-events").BalanceDataEvent} BalanceDataEvent */
+/** @typedef {import("../services/BalanceEventService").BalanceDataEvent} BalanceDataEvent */
 
 exports.balanceWorker = async (job, done) => {
     /** @type {BalanceDataEvent} */

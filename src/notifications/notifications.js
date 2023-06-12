@@ -1,6 +1,6 @@
 const models = require('../../models');
 const TelegramService = require('../services/TelegramService');
-/** @typedef {import('../services/NotificationService').NotificationMessageData} NotificationMessageData */
+/** @typedef {import('../services/NotificationEventService').NotificationMessageData} NotificationMessageData */
 
 
 /**

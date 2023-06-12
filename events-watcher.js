@@ -10,6 +10,9 @@ const {
 const {exchangeInstance} = require('./src/crypto/exchanges/exchanges');
 const models = require('./models');
 const {initLogger, captureConsoleLog} = require("./src/utils/logger");
+const TradeEventService = require('./src/services/TradeEventService');
+const OrderEventService = require('./src/services/OrderEventService');
+const BalanceEventService = require('./src/services/BalanceEventService');
 
 initLogger(
     process.env.LOGGER_SERVICE_ALL_FILE || 'logs/events-all.log' ,
@@ -44,6 +47,10 @@ const myBalanceQueue = new Queue("myBalance", {
         password: process.env.REDIS_PASSWORD,
     },
 });
+
+TradeEventService.init(myTradesQueue);
+OrderEventService.init(myOrdersQueue);
+BalanceEventService.init(myBalanceQueue);
 
 let currentConnections = {};
 
@@ -91,9 +98,9 @@ const removeAccount = function(account) {
 
                     await exchange.loadMarkets();
 
-                    let tradeWatcher = tradeEventHandler(id, exchange, myTradesQueue);
-                    let orderWatcher = orderEventHandler(id, exchange, myOrdersQueue);
-                    let balanceWatcher = balanceEventHandler(id, exchange, myBalanceQueue);
+                    let tradeWatcher = tradeEventHandler(id, exchange);
+                    let orderWatcher = orderEventHandler(id, exchange);
+                    let balanceWatcher = balanceEventHandler(id, exchange);
 
                     let connection = {
                         exchange,
@@ -110,7 +117,7 @@ const removeAccount = function(account) {
 
                     if (exchange.mainWalletAccountType() != account.account_type.account_type) {
                         console.log("Listen Main Balance Events.....")
-                        let mainBalanceWatcher = balanceEventHandler(id, exchange, myBalanceQueue, exchange.mainWalletAccountType());
+                        let mainBalanceWatcher = balanceEventHandler(id, exchange, exchange.mainWalletAccountType());
                         connection.mainBalanceWatcherCancel = mainBalanceWatcher.cancel;
                         promises.push(mainBalanceWatcher.promise);
                     }

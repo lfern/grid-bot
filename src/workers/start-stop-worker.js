@@ -7,10 +7,9 @@ const Redlock = require("redlock");
 /**
  * 
  * @param {Redlock} redlock 
- * @param {Queue} myOrderSenderQueue
  * @returns 
  */
-exports.startStopProcessPromise = function(redlock, myOrderSenderQueue) {
+exports.startStopProcessPromise = function(redlock) {
     return cancelablePromise(async (resolve, reject, signal) => {
         let cancelled = false;
 
@@ -22,7 +21,7 @@ exports.startStopProcessPromise = function(redlock, myOrderSenderQueue) {
             while (!cancelled) {
                 await stopGrids(() => cancelled)
 
-                await startGrids(redlock, myOrderSenderQueue, () => cancelled);
+                await startGrids(redlock, () => cancelled);
 
                 if (cancelled) break;
                 await sleep(10000);

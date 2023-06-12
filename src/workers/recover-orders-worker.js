@@ -2,8 +2,9 @@ const { PendingAccountRepository } = require("../../repository/PendingAccountRep
 const models = require('../../models');
 const {sleep} = require('../crypto/exchanges/utils/timeutils');
 const { cancelablePromise } = require("../crypto/exchanges/utils/procutils");
+const OrderEventService = require("../services/OrderEventService");
 
-exports.recoverOrdersWorkerPromise = function(myOrdersQueue) {
+exports.recoverOrdersWorkerPromise = function() {
     return cancelablePromise( async (resolve, reject, signal) => {
         let cancelled = false;
     
@@ -12,11 +13,6 @@ exports.recoverOrdersWorkerPromise = function(myOrdersQueue) {
         });
     
         let pendingAccountRepository = new PendingAccountRepository();
-        const options = {
-            attempts: 0,
-            removeOnComplete: true,
-            removeOnFail: true,
-        };
     
         while(!cancelled) {
             try {
@@ -39,15 +35,11 @@ exports.recoverOrdersWorkerPromise = function(myOrdersQueue) {
                         let dbOrder = dbOrders[i];
                         console.log(`RecoverOrdersWorker: account ${dbOrder.account_id} ${dbOrder.order_id}`);
                         console.log(`RecoverOrdersWorker: send order sender event after order recovered ${dbOrder.account_id} ${dbOrder.order_id}`);
-                        myOrdersQueue.add({
-                            account: dbOrder.account_id,
-                            order: dbOrder.order,
-                            delayed: dbOrder.delayed,
-                        }, options).then(ret => {
-                            console.log(`RecoverOrdersWorker: redis added order sender event after order recovered ${dbOrder.account_id} ${dbOrder.order_id} ${ret.data.delayed}`);
-                        }). catch(err => {
-                            console.error("RecoverOrdersWorker:", err);
-                        });
+                        OrderEventService.send(
+                            dbOrder.account_id,
+                            dbOrder.order,
+                            dbOrder.delayed
+                        );
                         // don't delete , just update updatedAt
                         dbOrder.changed('updatedAt', true);
                         await dbOrder.update({updatedAt: new Date()}, {transaction})

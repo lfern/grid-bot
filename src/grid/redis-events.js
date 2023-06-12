@@ -7,7 +7,8 @@ const Redlock= require("redlock");
 const { InstanceRepository } = require('../../repository/InstanceRepository');
 const { InstanceAccountRepository } = require('../../repository/InstanceAccountingRepository');
 const { StrategyInstanceEventRepository, LEVEL_INFO } = require('../../repository/StrategyInstanceEventRepository');
-
+const OrderSenderEventService = require('../services/OrderSenderEventService');
+const gridDirtyEventService = require('../services/GridDirtyEventService');
 /** @typedef {import('../crypto/exchanges/BaseExchangeOrder').BaseExchangeOrder} BaseExchangeOrder */
 /** @typedef {import('ccxt').Balance} Balance */
 
@@ -20,8 +21,9 @@ let eventRepository = new StrategyInstanceEventRepository();
  * @param {Redlock} redlock 
  * @param {string} accountId 
  * @param {BaseExchangeOrder} dataOrder 
+ * @param {boolean} delayed 
  */
-exports.orderHandler = async function (redlock, myOrderSenderQueue, accountId, dataOrder, delayed) {
+exports.orderHandler = async function (redlock, accountId, dataOrder, delayed) {
     if (delayed === undefined) {
         console.log(`OrderHandler: Add order to pending (first time seen here) ${accountId} ${dataOrder.id} ${dataOrder.symbol} ${dataOrder.status}`);
         await pendingAccountRepository.addOrder(accountId, dataOrder);
@@ -69,6 +71,10 @@ exports.orderHandler = async function (redlock, myOrderSenderQueue, accountId, d
                         console.log(`OrderHandler: order received while grid is not running ${dataOrder.id}`);
                         await pendingAccountRepository.removeOrder(strategyInstance.strategy.account.id, dataOrder);
                     } else {
+
+                        // TODO: check if there is a pending order in the grid with lower createdAt 
+                        let otherPreviousOrder = dataOrder;
+
                         // create exchange
                         let account = strategyInstance.strategy.account;
                         const exchange = await exchangeInstanceWithMarkets(account.exchange.exchange_name, {
@@ -80,34 +86,31 @@ exports.orderHandler = async function (redlock, myOrderSenderQueue, accountId, d
                         });
         
                         let gridCreator = new GridManager(exchange, strategyInstance, strategyInstance.strategy);
-                        let orderHandled = await gridCreator.handleOrder(dataOrder, delayed);
-    
-                        if (orderHandled != null) {
-                            const options = {
-                                attempts: 0,
-                                removeOnComplete: true,
-                                removeOnFail: true,
-                            };
-        
-                            console.log("OrderHandler: send grid update:", strategyInstance.id);
-                            myOrderSenderQueue.add(strategyInstance.id, options).then(ret => {
-                                console.log("OrderHandler: redis added grid update:", strategyInstance.id);
-                            }). catch(err => {
-                                console.error("OrderHandler:", err);
-                            });
+                        let result = await gridCreator.handleOrder(otherPreviousOrder, delayed);
+   
+                        if (result.gridDirty) {
+                            gridCreator.setGridDirty(true, otherPreviousOrder);
+                            // send grid dirty
+                            console.log("OrderHandler: send grid dirty event:", strategyInstance.id);
+                            gridDirtyEventService.send(strategyInstance.id);
+                        } else {
+                            if (result.gridUpdated) {
+                                console.log("OrderHandler: send order sender event after grid update:", strategyInstance.id);
+                                OrderSenderEventService.send(strategyInstance.id);
 
-                            await eventRepository.create(
-                                strategyInstance,
-                                'OrderExecuted',
-                                LEVEL_INFO,
-                                `Order executed: \n`+
-                                `${dataOrder.id} ${dataOrder.side} ${dataOrder.symbol} `+
-                                `${dataOrder.price}/${dataOrder.average} ${dataOrder.amount}/${dataOrder.filled}`
-                            );
+                                await eventRepository.create(
+                                    strategyInstance,
+                                    'OrderExecuted',
+                                    LEVEL_INFO,
+                                    `Order executed: \n`+
+                                    `${dataOrder.id} ${dataOrder.side} ${dataOrder.symbol} `+
+                                    `${dataOrder.price}/${dataOrder.average} ${dataOrder.amount}/${dataOrder.filled}`
+                                );
+                            }
                             
-                            if (orderHandled.id != dataOrder.id) {
+                            if (otherPreviousOrder.id != dataOrder.id) {
                                 retry = true;
-                                console.log(`OrderHandler: grid procesed order id ${handleOrder.id} instead of ${dataOrder.id}, try to execute with new locking period`);
+                                console.log(`OrderHandler: grid procesed order id ${otherPreviousOrder.id} instead of ${dataOrder.id}, try to execute with new locking period`);
                             }
                         }
                     }

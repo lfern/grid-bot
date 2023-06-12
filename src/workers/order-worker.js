@@ -2,14 +2,14 @@ const { BaseExchangeCcxtOrder } = require("../crypto/exchanges/ccxt/BaseExchange
 const { orderHandler } = require("../grid/redis-events");
 const Redlock = require("redlock");
 
-/** @typedef {import("../grid/exchange-events").OrderDataEvent} OrderDataEvent */
+/** @typedef {import("../services/OrderEventService").OrderDataEvent} OrderDataEvent */
 
 /**
  * 
  * @param {Redlock} redlock 
  * @returns 
  */
-exports.orderWorker = function(redlock, myOrderSenderQueue) {
+exports.orderWorker = function(redlock) {
     return async (job, done) => {
         /** @type {OrderDataEvent} */
         let data = job.data;
@@ -19,7 +19,7 @@ exports.orderWorker = function(redlock, myOrderSenderQueue) {
         let delayedStr = delayed === undefined ? 'delayed-n/a' : (delayed?'delayed':'not-delayed');
         console.log(`OrderWorker: received order ${dataOrder.id} ${dataOrder.status} ${dataOrder.side} ${dataOrder.symbol} ${fromExchangeStr} ${delayedStr}`);
         try {
-            await orderHandler(redlock, myOrderSenderQueue, data.account, dataOrder, delayed);
+            await orderHandler(redlock, data.account, dataOrder, delayed);
         } catch (ex) {
             console.error("OrderWorker:", ex);
         }

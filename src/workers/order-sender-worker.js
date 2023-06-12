@@ -7,7 +7,7 @@ const {exchangeInstanceWithMarkets} = require('../services/ExchangeMarket');
 const models = require('../../models');
 const { InstanceAccountRepository } = require('../../repository/InstanceAccountingRepository');
 const { StrategyInstanceEventRepository, LEVEL_ERROR } = require('../../repository/StrategyInstanceEventRepository');
-
+const OrderSenderEventService = require('../services/OrderSenderEventService');
 
 let instanceRepository = new InstanceRepository();
 let instanceAccRepository = new InstanceAccountRepository();
@@ -15,11 +15,10 @@ let eventRepository = new StrategyInstanceEventRepository();
 
 /**
  * 
- * @param {Queue} myOrderSenderQueue 
  * @param {Redlock} redlock
  * @returns 
  */
-exports.orderSenderWorker = function (myOrderSenderQueue, redlock) {
+exports.orderSenderWorker = function (redlock) {
     return async (job, done) => {
         let grid = job.data;
         console.log("OrderSenderWorker: sending next order for Grid ", grid);
@@ -100,18 +99,8 @@ exports.orderSenderWorker = function (myOrderSenderQueue, redlock) {
 
             
             // send message to next order (maybe we could check if any is pending)
-            const options = {
-                attempts: 0,
-                removeOnComplete: true,
-                removeOnFail: true,
-            };
-            
             console.log("OrderSenderWorker: send order sender event, after order sent:", instance.id);
-            myOrderSenderQueue.add(grid, options).then(ret => {
-                console.log("OrderSenderWorker: redis added order sender event, after order sent:", instance.id);
-            }). catch(err => {
-                console.error("Error:", err);
-            });
+            OrderSenderEventService.send(grid);
 
         } catch (ex) {
             console.error(`OrderSenderWorker: error processing send order event for instance ${grid}:`, ex);

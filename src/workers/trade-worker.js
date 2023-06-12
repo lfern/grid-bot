@@ -1,7 +1,7 @@
 const { InstanceAccountRepository } = require("../../repository/InstanceAccountingRepository");
 const { BaseExchangeCcxtTrade } = require("../crypto/exchanges/ccxt/BaseExchangeCcxtTrade");
 
-/** @typedef {import("../grid/exchange-events").TradeDataEvent} TradeDataEvent */
+/** @typedef {import('./src/services/TradeEventService').TradeDataEvent} TradeDataEvent */
 
 exports.tradeWorker = async (job, done) => {
     /** @type {TradeDataEvent} */

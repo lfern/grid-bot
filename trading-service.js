@@ -10,11 +10,17 @@ const { orderSenderWorker } = require("./src/workers/order-sender-worker");
 const { startStopProcessPromise } = require("./src/workers/start-stop-worker");
 const { recoverOrdersWorkerPromise } = require("./src/workers/recover-orders-worker");
 const { broadcastWorkerPromise } = require("./src/workers/broadcast-worker");
-const NotificationService = require('./src/services/NotificationService');
+const NotificationEventService = require('./src/services/NotificationEventService');
+const OrderSenderEventService = require('./src/services/OrderSenderEventService');
+const OrderEventService = require("./src/services/OrderEventService");
+const GridNoFundsEventService = require("./src/services/GridNoFundsEventService");
+const GridDirtyEventService = require("./src/services/GridDirtyEventService");
+const CheckAccountDepositEventService = require("./src/services/CheckAccountDepositEventService");
 
-/** @typedef {import('./src/grid/exchange-events').TradeDataEvent} TradeDataEvent */
-/** @typedef {import('./src/grid/exchange-events').OrderDataEvent} OrderDataEvent */
-/** @typedef {import('./src/grid/exchange-events').BalanceDataEvent} BalanceDataEvent */
+
+/** @typedef {import('./src/services/TradeEventService').TradeDataEvent} TradeDataEvent */
+/** @typedef {import('./src/services/OrderEventService').OrderDataEvent} OrderDataEvent */
+/** @typedef {import('./src/services/BalanceEventService').BalanceDataEvent} BalanceDataEvent */
 
 initLogger(
     process.env.LOGGER_SERVICE_ALL_FILE || 'logs/service-all.log' ,
@@ -45,7 +51,6 @@ const opts = {
             case "subscriber":
                 return subscriber;
             case "bclient":
-                console.log(redisOpts);
                 return new Redis(redisConnOpts, redisOpts);
             default:
                 throw new Error("Unexpected connection type: ", type);
@@ -85,33 +90,38 @@ const redlock = new Redlock(
 
 
 const myTradesQueue = new Queue("myTrades", opts);
-
 const myOrdersQueue = new Queue("myOrders", opts);
-
 const myBalanceQueue = new Queue("myBalance", opts);
-
 const myOrderSenderQueue = new Queue("myOrderSender", opts);
-
 const myNotificationQueue = new Queue("myNotification", opts);
+const myGridNoFundsQueue = new Queue("myGridNoFunds", opts);
+const myGridDirtyQueue = new Queue("myGridDirty", opts);
+const myCheckAccountDepositQueue = new Queue("myCheckAccountDeposit", opts);
 
-NotificationService.init(myNotificationQueue);
+OrderEventService.init(myOrdersQueue);
+OrderSenderEventService.init(myOrderSenderQueue);
+NotificationEventService.init(myNotificationQueue);
+GridNoFundsEventService.init(myGridNoFundsQueue);
+GridDirtyEventService.init(myGridDirtyQueue);
+CheckAccountDepositEventService.init(myCheckAccountDepositQueue);
+
 
 // wait for trades from redis server
 myTradesQueue.process(tradeWorker);
 
 // wait for orders from redis server
-myOrdersQueue.process(orderWorker(redlock, myOrderSenderQueue));
+myOrdersQueue.process(orderWorker(redlock));
 
 // wait for balance from redis server
 myBalanceQueue.process(balanceWorker);
 
-myOrderSenderQueue.process(orderSenderWorker(myOrderSenderQueue, redlock));
+myOrderSenderQueue.process(orderSenderWorker(redlock));
 
 // query database for start/stop grids
 
 const promises = [
-    startStopProcessPromise(redlock, myOrderSenderQueue),
-    recoverOrdersWorkerPromise(myOrdersQueue),
+    startStopProcessPromise(redlock),
+    recoverOrdersWorkerPromise(),
     broadcastWorkerPromise(),
 ];
 

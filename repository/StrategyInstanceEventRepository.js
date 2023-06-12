@@ -1,5 +1,5 @@
 const models = require('../models');
-const NotificationService = require('../src/services/NotificationService');
+const NotificationEventService = require('../src/services/NotificationEventService');
 
 const LEVEL_CRITICAL = 3; 
 const LEVEL_ERROR = 2;
@@ -31,7 +31,7 @@ class StrategyInstanceEventRepository {
         }
 
         let notifMsg = `${strategy.strategy_name}: ${message}`;
-        NotificationService.send(event, level, notifMsg, params);
+        NotificationEventService.send(event, level, notifMsg, params);
     }
 }
 

@@ -159,8 +159,12 @@ class GridManager {
                     LEVEL_CRITICAL,
                     `Couln't cancel order ${orders[i]}!!! Stopping grid instance: ${ex.message}`
                 );
+
+                return false;
             }
         }
+
+        return true;
     }
 /*
     async createOrders(gridEntries) {
@@ -255,130 +259,147 @@ class GridManager {
     }
 
     /**
+     * @typedef {Object} GridHandledOrderStatus
+     * @property {boolean} gridDirty - grid dirty
+     * @property {boolean} delayed - order delayed (not in grid now)
+     * @property {boolean} gridUpdated - 
+     */
+
+    /**
      * @param {BaseExchangeOrder} order 
+     * @return {GridHandledOrderStatus}
      */
     async handleOrder(order, delayedOrder) {
         // Only process closed orders for now
         if (order.status != 'closed') {
             await this.instanceAccRepository.updateOrder(this.strategy.account.id, order);
             await this.pendingAccountRepository.removeOrder(this.strategy.account.id, order);
-            return null;
+            return {
+                delayed: false,
+                gridDirty: false,
+                gridUpdated: false,
+            };
         }
         
-        // TODO: check if there is a pending order in the grid with lower createdAt 
-
         // Block grid
-        let [gridEntries, canceledOrders, delayed] = await this._tryModifyGrid(order);
+        let ret = await this._tryModifyGrid(order);
+        ret.gridUpdated = false;
+
+        if (ret.gridDirty) {
+            return ret;
+        }
+
         // if delayed means this order is not in grid now
-        if (delayed) {
+        if (ret.delayed) {
             // check if order is still processed
             let orderInDb = this.instanceAccRepository.getOrder(this.strategy.account.id, order);
             if (orderInDb.status == 'closed') {
                 // still processed
                 console.log(`Order ${order.id} seems to be processed in ${this.instance.id}, so remove from pending`);
                 await this.pendingAccountRepository.removeOrder(this.strategy.account.id, order);
+                ret.delayed = false;
             }
-            return null;
+
+            return ret;
         } else {
+            ret.gridUpdated = true;
             // order has been processed now or still processed, so update and remove from pending
             await this.instanceAccRepository.updateOrder(this.strategy.account.id, order);
             await this.pendingAccountRepository.removeOrder(this.strategy.account.id, order);
-            // cancel orders removed from grid
-            await this.cancelOrders(canceledOrders);
-            return order;
+            return ret;
         }
 
     }
 
     async _tryModifyGrid(order) {
-        let gridEntriesRaw = [];
+        let ret = {
+            gridDirty: false,
+            delayed: false,
+        };
+        // grid is locked so don't need lock in db
+        // get all grid entries orderes by buy id
+        let gridEntries = await models.StrategyInstanceGrid.findAll({
+            where: {
+                strategy_instance_id: this.instance.id,
+            },
+            order: [
+                ['buy_order_id', 'ASC'],
+            ]
+        });
+        // check grid data
+        let indexOrder = -1;
+        // TODO: not need all actives...
+        let allActives = true;
+        let indexHigherBuy = -1;
+        let indexLowerSell = -1;
+        gridEntries.forEach((entry, index) => {
+            if (entry.exchange_order_id == order.id) {
+                indexOrder = index;
+            }
+
+            if (indexHigherBuy == -1 && entry.side == 'buy') {
+                indexHigherBuy = index;
+            }
+
+            if (entry.side == 'sell') {
+                indexLowerSell = index;
+            }
+
+            if (entry.side != null) {
+                allActives = allActives && entry.active;
+            }
+
+        });
+
+        // If order not in grid now, stop
+        if (/*!allActives || */indexOrder == -1) {
+            // if all actives then this order is processed before  
+            ret.delayed = !allActives;
+            return;
+        }
+
         let canceledOrders = [];
-        let delayed = false;
-        await models.sequelize.transaction(async transaction => {
-            // get all grid entries orderes by buy id
-            let gridEntries = await models.StrategyInstanceGrid.findAll({
-                where: {
-                    strategy_instance_id: this.instance.id,
-                },
-                lock: transaction.LOCK.UPDATE,
-                transaction,
-                order: [
-                    ['buy_order_id', 'ASC'],
-                ]
-            });
-            // check grid data
-            let indexOrder = -1;
-            // TODO: not need all actives...
-            let allActives = true;
-            let indexHigherBuy = -1;
-            let indexLowerSell = -1;
-            gridEntries.forEach((entry, index) => {
-                if (entry.exchange_order_id == order.id) {
-                    indexOrder = index;
-                }
-
-                if (indexHigherBuy == -1 && entry.side == 'buy') {
-                    indexHigherBuy = index;
-                }
-
-                if (entry.side == 'sell') {
-                    indexLowerSell = index;
-                }
-
-                if (entry.side != null) {
-                    allActives = allActives && entry.active;
-                }
-
-            });
-
-            // If order not in grid now, stop
-            if (/*!allActives || */indexOrder == -1) {
-                // if all actives then this order is processed before  
-                delayed = !allActives;
+        if (order.side == 'buy') {
+            if (indexHigherBuy != indexOrder) {
+                console.error("buy order executed is not the higher buy in ther grid???");
+                ret.gridDirty = true;
                 return;
             }
 
-            if (order.side == 'buy') {
-                if (indexHigherBuy != indexOrder) {
-                    delayed = true;
-                    console.error("buy order executed is not the higher buy in ther grid???");
-                    await this.setGridDirty(true, order);
-                    return;
-                }
+            this._printGrid(gridEntries.map(x => x.get({ plain: true })));
 
-                this._printGrid(gridEntries.map(x => x.get({ plain: true })));
-
-                for(let i=indexHigherBuy; i <= indexOrder; i++) {
-                    this._removeIndexFromGrid(gridEntries, i, canceledOrders);
-                }
-            } else {
-                if (indexLowerSell != indexOrder) {
-                    delayed = true;
-                    console.error("sell order executed is not the lower sell in ther grid???");
-                    await this.setGridDirty(true, order);
-                    return;
-                }
-
-                this._printGrid(gridEntries.map(x => x.get({ plain: true })));
-
-                for(let i=indexLowerSell; i >= indexOrder; i--) {
-                    this._removeIndexFromGrid(gridEntries, i, canceledOrders);
-                }
+            for(let i=indexHigherBuy; i <= indexOrder; i++) {
+                this._removeIndexFromGrid(gridEntries, i, canceledOrders);
+            }
+        } else {
+            if (indexLowerSell != indexOrder) {
+                console.error("sell order executed is not the lower sell in ther grid???");
+                ret.gridDirty = true;
+                return;
             }
 
-            for(let i=0;i<gridEntries.length;i++) {
-                if (gridEntries[i].changed()) {
-                    await gridEntries[i].save({transaction});
-                }
+            this._printGrid(gridEntries.map(x => x.get({ plain: true })));
+
+            for(let i=indexLowerSell; i >= indexOrder; i--) {
+                this._removeIndexFromGrid(gridEntries, i, canceledOrders);
             }
+        }
 
-            await this.setGridDirty(false, order);
-
-            gridEntriesRaw = gridEntries.map(x => x.get({ plain: true }));
-            this._printGrid(gridEntriesRaw);
-        });
+        // cancel orders removed from grid
+        if (!await this.cancelOrders(canceledOrders)){
+            ret.gridDirty = true;
+            return;
+        }
+        // if everything is ok save to database
+        for(let i=0;i<gridEntries.length;i++) {
+            if (gridEntries[i].changed()) {
+                await gridEntries[i].save();
+            }
+        }
+    
+        this._printGrid(gridEntries.map(x => x.get({ plain: true })));
         
-        return [gridEntriesRaw, canceledOrders, delayed];
+        return ret;
     }
 
     _printGrid(gridEntriesRaw) {
