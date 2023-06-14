@@ -86,6 +86,11 @@ module.exports = (sequelize, DataTypes) => {
         main_balance_updated_at: {
             allowNull: true,
             type: DataTypes.DATE,
+        },
+        transfer_permission: {
+            allowNull: false,
+            type: DataTypes.BOOLEAN,
+            defaultValue: true
         }
     }, {
         tableName: 'accounts'

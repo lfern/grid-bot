@@ -17,6 +17,9 @@ const GridNoFundsEventService = require("./src/services/GridNoFundsEventService"
 const GridDirtyEventService = require("./src/services/GridDirtyEventService");
 const CheckAccountDepositEventService = require("./src/services/CheckAccountDepositEventService");
 const LockService = require("./src/services/LockService");
+const { checkDepositWorker } = require("./src/workers/deposit-worker");
+const { gridNoFundsWorker } = require("./src/workers/gridnofunds-worker");
+require('events').defaultMaxListeners = 15;
 
 
 /** @typedef {import('./src/services/TradeEventService').TradeDataEvent} TradeDataEvent */
@@ -105,6 +108,7 @@ NotificationEventService.init(myNotificationQueue);
 GridNoFundsEventService.init(myGridNoFundsQueue);
 GridDirtyEventService.init(myGridDirtyQueue);
 CheckAccountDepositEventService.init(myCheckAccountDepositQueue);
+
 LockService.init(redlock);
 
 // wait for trades from redis server
@@ -117,6 +121,11 @@ myOrdersQueue.process(orderWorker);
 myBalanceQueue.process(balanceWorker);
 
 myOrderSenderQueue.process(orderSenderWorker);
+
+myCheckAccountDepositQueue.process(checkDepositWorker);
+
+myGridNoFundsQueue.process(gridNoFundsWorker);
+
 
 // query database for start/stop grids
 

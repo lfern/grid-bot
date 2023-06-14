@@ -1,6 +1,6 @@
 const models = require('../../models');
 const { GridManager } = require('./grid');
-const { exchangeInstanceWithMarkets } = require('../services/ExchangeMarket');
+const { exchangeInstanceWithMarketsFromAccount } = require('../services/ExchangeMarket');
 const { InstanceRepository } = require('../../repository/InstanceRepository');
 const { StrategyInstanceEventRepository, LEVEL_INFO } = require('../../repository/StrategyInstanceEventRepository');
 const OrderSenderEventService = require('../services/OrderSenderEventService');
@@ -64,13 +64,7 @@ exports.startGrids = async function(isCancelled) {
                 let account = strategy.account;
 
                 // create exchange
-                const exchange = await exchangeInstanceWithMarkets(account.exchange.exchange_name, {
-                    exchangeType: account.account_type.account_type,
-                    paper: account.paper,
-                    rateLimit: 1000,  // testing 1 second though it is not recommended (I think we should not send too many requests/second)
-                    apiKey: account.api_key,
-                    secret: account.api_secret,
-                });
+                const exchange = await exchangeInstanceWithMarketsFromAccount(account);
 
                 // Create grid in db
                 let currentPrice = await exchange.fetchCurrentPrice(strategy.symbol);
@@ -148,13 +142,7 @@ exports.stopGrids = async function(isCancelled) {
             });
 
             // create exchange
-            const exchange = await exchangeInstanceWithMarkets(account.exchange.exchange_name, {
-                exchangeType: account.account_type.account_type,
-                paper: account.paper,
-                rateLimit: 1000,  // testing 1 second though it is not recommended (I think we should not send too many requests/second)
-                apiKey: account.api_key,
-                secret: account.api_secret,
-            });
+            const exchange = await exchangeInstanceWithMarketsFromAccount(account);
             try {
                 // stop grid in db
                 await eventRepository.create(

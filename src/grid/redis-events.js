@@ -1,19 +1,22 @@
 const models = require('../../models');
 const { PendingAccountRepository } = require('../../repository/PendingAccountRepository');
 const { GridManager } = require('./grid');
-const { exchangeInstanceWithMarkets } = require('../services/ExchangeMarket');
+const { exchangeInstanceWithMarketsFromAccount } = require('../services/ExchangeMarket');
 const { exchangeInstance } = require('../crypto/exchanges/exchanges');
 const { InstanceRepository } = require('../../repository/InstanceRepository');
 const { StrategyInstanceEventRepository, LEVEL_INFO } = require('../../repository/StrategyInstanceEventRepository');
 const OrderSenderEventService = require('../services/OrderSenderEventService');
 const gridDirtyEventService = require('../services/GridDirtyEventService');
 const LockService = require('../services/LockService');
+const CheckAccountDepositEventService = require('../services/CheckAccountDepositEventService');
+const { BroadcastTransactionRepository } = require('../../repository/BroadcastTransactionRepository');
 /** @typedef {import('../crypto/exchanges/BaseExchangeOrder').BaseExchangeOrder} BaseExchangeOrder */
 /** @typedef {import('ccxt').Balance} Balance */
 
 let instanceRepository = new InstanceRepository();
 let pendingAccountRepository = new PendingAccountRepository();
 let eventRepository = new StrategyInstanceEventRepository();
+let transactionRepository = new BroadcastTransactionRepository();
 
 /**
  * 
@@ -57,7 +60,7 @@ exports.orderHandler = async function (accountId, dataOrder, delayed) {
                 console.log(`OrderHandler: try to acquire lock in orderHandler for order ${dataOrder.id} for instance ${strategyInstance.id}`);
                 let lock = null;
                 try {
-                    lock = await LockService.acquire(['grid-instance-' + strategyInstance.id], 15000);
+                    lock = await LockService.acquire(['grid-instance-' + strategyInstance.id], 60000);
                     console.log(`OrderHandler: Lock acquired in orderHandler for order ${dataOrder.id} for instance ${strategyInstance.id}`);
                     if (!strategyInstance.running) {
                         console.log(`OrderHandler: order received while grid is not running ${dataOrder.id}`);
@@ -69,13 +72,7 @@ exports.orderHandler = async function (accountId, dataOrder, delayed) {
 
                         // create exchange
                         let account = strategyInstance.strategy.account;
-                        const exchange = await exchangeInstanceWithMarkets(account.exchange.exchange_name, {
-                            exchangeType: account.account_type.account_type,
-                            paper: account.paper,
-                            rateLimit: 1000,  // testing 1 second though it is not recommended (I think we should not send too many requests/second)
-                            apiKey: account.api_key,
-                            secret: account.api_secret,
-                        });
+                        const exchange = await exchangeInstanceWithMarketsFromAccount(account);
         
                         let gridCreator = new GridManager(exchange, strategyInstance, strategyInstance.strategy);
                         let result = await gridCreator.handleOrder(otherPreviousOrder, delayed);
@@ -135,23 +132,25 @@ exports.orderHandler = async function (accountId, dataOrder, delayed) {
         return;
     }
 
-    // TODO: if pending orders to be sent send signal to send them
-    if (accountType == account.account_type.account_type) {
+    let isMainAccount = accountType == account.account_type.account_type;
+    // get exchange object (don't need to initialize markets)
+    // TODO: we need initialize all ccxt stuff only to check if this account receive deposits directly?
+    let exchange = exchangeInstance(account.exchange.exchange_name, {
+        paper: account.paper === true,
+        exchangeType: account.account_type.account_type
+    });
+
+    if (isMainAccount) {
         // update wallet balance
         models.Account.update({
             wallet_balance: balance,
             wallet_balance_updated_at: models.Sequelize.fn('NOW'),
         }, {
             where: {id: accountId},
-        })
-    } else {
-        // check if it is a main balance
-        // get exchange object (don't need to initialize markets)
-        let exchange = exchangeInstance(account.exchange.exchange_name, {
-            paper: account.paper === true,
-            exchangeType: account.account_type.account_type
         });
 
+    } else {
+        // check if it is a main balance
         if (exchange.mainWalletAccountType() == accountType) {
             // update main wallet balance
             models.Account.update({
@@ -159,7 +158,9 @@ exports.orderHandler = async function (accountId, dataOrder, delayed) {
                 main_balance_updated_at: models.Sequelize.fn('NOW'),
             }, {
                 where: {id: accountId},
-            })    
+            });
+
+            wouldNeedToTransfer = true;
         }
 
         console.log(
@@ -167,8 +168,19 @@ exports.orderHandler = async function (accountId, dataOrder, delayed) {
             accountType,
             account.account_type.account_type
         );
+
     }
 
-    // 
 
+    let thisWalletReceiveDeposits = account.account_type.account_type == exchange.mainWalletAccountType(); 
+    if ((thisWalletReceiveDeposits && isMainAccount ) ||
+        (!thisWalletReceiveDeposits && !isMainAccount)) {
+        // only send when there are pending transactions
+        let transactions = await transactionRepository.getTransactionsWithoutDepositForAccount(accountId);
+
+        if (transactions.length > 0) {
+            console.log("BalanceHandler: pending transactions for this account, sending check deposit event", accountId);
+            CheckAccountDepositEventService.send(accountId, !thisWalletReceiveDeposits);
+        }
+    }
  }

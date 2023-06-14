@@ -55,6 +55,15 @@ module.exports = (sequelize, DataTypes) => {
         dirty_at: {
             allowNull: true,
             type: DataTypes.DATE
+        },
+        nofunds: {
+            allowNull: false,
+            type: DataTypes.BOOLEAN,
+            defaultValue: false,
+        },
+        nofunds_at: {
+            allowNull: true,
+            type: DataTypes.DATE
         }
     }, {
         tableName: 'strategy_instances'

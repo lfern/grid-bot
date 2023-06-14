@@ -3,7 +3,7 @@
 
 const { EventService } = require('./EventService');
 
-class NoFundEventService extends EventService {
+class GridNoFundsEventService extends EventService {
     constructor() {
         super("NoFunds");
     }
@@ -12,6 +12,6 @@ class NoFundEventService extends EventService {
         this._send(gridId);
     }
 }
-const noFundEventService = new NoFundEventService();
+const gridNoFundsEventService = new GridNoFundsEventService();
 
-module.exports = noFundEventService;
+module.exports = gridNoFundsEventService;

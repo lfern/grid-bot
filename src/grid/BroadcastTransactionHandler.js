@@ -1,31 +1,13 @@
 const models = require('../../models');
+const { BroadcastTransactionRepository } = require('../../repository/BroadcastTransactionRepository');
 const broadcastService = require('../services/BroadcastTransactionService');
 
+const broadcastRepository = new BroadcastTransactionRepository();
+
 const sendPendingTransactions = async function (isCancelledFn = () => false) {
-    let broadcastTransaction = null;
     while(!isCancelledFn()) {
         console.log("Check pending broadcast transaccions...");
-        await models.sequelize.transaction(async (transaction) => {
-            broadcastTransaction = await models.BroadcastTransaction.findOne({
-                where: {
-                    status: 'pending',
-                    sent_at: null,
-                    send_requested_at:{
-                        [models.Sequelize.Op.ne]: null
-                    }
-                },
-                transaction,
-                lock: transaction.LOCK.UPDATE,
-                order: [
-                    ['updatedAt', 'ASC'],
-                ],
-            });
-            if (broadcastTransaction != null) {
-                broadcastTransaction.sent_at = models.sequelize.fn('NOW');
-                await broadcastTransaction.save({transaction});
-            }
-        });
-    
+        let broadcastTransaction = await broadcastRepository.nextTransactionPendingAndSetSent();
         if (broadcastTransaction == null) {
             break;
         }
@@ -50,18 +32,7 @@ const sendPendingTransactions = async function (isCancelledFn = () => false) {
 
 const checkSentTransactions = async function(isCancelledFn = () => false) {
     console.log("Check status sent broadcast transaccions...");
-    let pendingTransactions = await models.BroadcastTransaction.findAll({
-        where: {
-            status: 'sent',
-            txid: {
-                [models.Sequelize.Op.ne]: null
-            }
-        },
-        order: [
-            ['updatedAt', 'ASC'],
-        ],
-        limit: 10,
-    });
+    let pendingTransactions = await broadcastRepository.getPendingTransactions(10);
 
     for(let i=0;i<pendingTransactions.length && !isCancelledFn(); i++) {
         let pendingTransaction = pendingTransactions[i];

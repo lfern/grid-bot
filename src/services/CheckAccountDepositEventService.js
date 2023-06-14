@@ -3,13 +3,24 @@
 
 const { EventService } = require('./EventService');
 
+
+/**
+ * @typedef {Object} CheckAccountDepositEventData
+ * @property {String} account
+ * @property {boolean} transferFromMainWallet
+ */
+
 class CheckAccountDepositEventService extends EventService {
     constructor() {
         super("CheckAccountDeposit");
     }
-    
-    send(gridId) {
-        this._send(gridId);
+    send(account, transferFromMainWallet) {
+        /** @type {CheckAccountDepositEventData} */
+        let data = {
+            account,
+            transferFromMainWallet
+        }    
+        this._send(data);
     }
 }
 const checkAccountDepositEventService = new CheckAccountDepositEventService();

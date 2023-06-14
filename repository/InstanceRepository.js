@@ -82,6 +82,37 @@ class InstanceRepository {
         }
         return await models.StrategyInstance.findOne(options);
     }
+
+    async resetNoFundsRunningGrids4Account(accountId) {
+        let nofundsGridsIds = [];
+        await models.sequelize.transaction(async (transaction) => {
+            let nofundsGrids = await models.StrategyInstance.findAll({
+                where:{
+                    '$strategy.account_id$': accountId,
+                    running: true,
+                    nofunds: true,
+                },
+                include: [models.StrategyInstance.Strategy],           
+                transaction
+            });
+
+            nofundsGridsIds = nofundsGrids.map(x => x.id);
+
+            if (nofundsGrids.length > 0) {
+
+                await models.StrategyInstance.update({
+                    nofunds: false,
+                }, {
+                    where: {
+                        id: nofundsGridsIds,
+                    },
+                    transaction
+                });
+            }
+        });
+
+        return nofundsGridsIds;
+    }
 }
 
 module.exports = {InstanceRepository}

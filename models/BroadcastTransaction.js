@@ -77,6 +77,27 @@ module.exports = (sequelize, DataTypes) => {
             allowNull: false,
             type: DataTypes.INTEGER,
             defaultValue: 0
+        },
+        deposit_id: {
+            allowNull: true,
+            type: DataTypes.STRING
+        },
+        deposited_at: {
+            allowNull: true,
+            type: DataTypes.DATE
+        },
+        deposit: {
+            allowNull: true,
+            type: DataTypes.JSONB
+        },
+        deposit_status: {
+            allowNull: false,
+            type: DataTypes.ENUM('n/a', 'pending', 'deposited', 'missing'),
+            defaultValue: 'n/a'
+        },
+        currency: {
+            allowNull: false,
+            type: DataTypes.STRING,
         }
     }, {
         tableName: 'broadcast_transactions'

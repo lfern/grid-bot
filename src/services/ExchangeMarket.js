@@ -85,7 +85,41 @@ const exchangeInstanceWithMarkets = async function(id, options) {
     return exchange;
 }
 
+
+/**
+ * 
+ * @param {Object} account 
+ * @returns {BaseExchange}
+ */
+const exchangeInstanceWithMarketsFromAccount = async function(account) {
+    let exchange = account.exchange;
+    let account_type = account.account_type;
+    if (!exchange || !account_type) {
+        let freshAccount = await models.Account.findOne({
+            where: {id: account.id},
+            include: [models.Account.AccountType, models.Account.Exchange]
+        });
+
+        if (freshAccount == null) {
+            throw new Error(`Account Id not found creating exchange object: ${account.id}`)
+        }
+
+        account_type = freshAccount.account_type;
+        exchange = freshAccount.exchange;
+    }
+
+
+    return await exchangeInstanceWithMarkets(exchange.exchange_name, {
+        exchangeType: account_type.account_type,
+        paper: account.paper,
+        rateLimit: 1000,  // testing 1 second though it is not recommended (I think we should not send too many requests/second)
+        apiKey: account.api_key,
+        secret: account.api_secret,
+    });
+}
+
 module.exports = {
     initializeExchangeMarkets,
     exchangeInstanceWithMarkets,
+    exchangeInstanceWithMarketsFromAccount
 }

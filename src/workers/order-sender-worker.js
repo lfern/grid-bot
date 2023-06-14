@@ -2,12 +2,14 @@
 /** @typedef {import('bull').Queue} Queue */
 const { InstanceRepository } = require('../../repository/InstanceRepository');
 const { GridManager } = require('../grid/grid');
-const {exchangeInstanceWithMarkets} = require('../services/ExchangeMarket');
+const {exchangeInstanceWithMarketsFromAccount} = require('../services/ExchangeMarket');
 const models = require('../../models');
 const { InstanceAccountRepository } = require('../../repository/InstanceAccountingRepository');
 const { StrategyInstanceEventRepository, LEVEL_ERROR } = require('../../repository/StrategyInstanceEventRepository');
 const OrderSenderEventService = require('../services/OrderSenderEventService');
 const LockService = require('../services/LockService');
+const { default: ccxt } = require('ccxt');
+const gridNoFundsEventService = require('../services/GridNoFundsEventService');
 
 let instanceRepository = new InstanceRepository();
 let instanceAccRepository = new InstanceAccountRepository();
@@ -24,7 +26,7 @@ exports.orderSenderWorker = async (job, done) => {
     try {
         // Lock grid
         console.log(`OrderSenderWorker: try to acquire lock in orderSenderWorker for instance ${grid}`);
-        lock = await LockService.acquire(['grid-instance-' + grid], 15000);
+        lock = await LockService.acquire(['grid-instance-' + grid], 60000);
 
         console.log(`OrderSenderWorker: lock acquired in orderSenderWorker for instance ${grid}`);
         // Get next order to send
@@ -43,15 +45,8 @@ exports.orderSenderWorker = async (job, done) => {
         let account = strategy.account;
 
         // create exchange
-        const exchange = await exchangeInstanceWithMarkets(account.exchange.exchange_name, {
-            exchangeType: account.account_type.account_type,
-            paper: account.paper,
-            rateLimit: 1000,  // testing 1 second though it is not recommended (I think we should not send too many requests/second)
-            apiKey: account.api_key,
-            secret: account.api_secret,
-        });
-
-
+        const exchange = await exchangeInstanceWithMarketsFromAccount(account);
+      
         let gridManager = new GridManager(exchange, instance, strategy)
         let gridInstance = await gridManager.getNextOrderToSend();
         if (gridInstance == null) {
@@ -59,8 +54,6 @@ exports.orderSenderWorker = async (job, done) => {
             return;
         }
 
-        // TODO: check balance before send order
-                
         // send order
         let order;
         try {
@@ -74,6 +67,11 @@ exports.orderSenderWorker = async (job, done) => {
             );
         } catch (ex) {
             // TODO: check if error is about insufficient funds
+            if (ex instanceof ccxt.InsufficientFunds) {
+                console.error(`OrderSenderWorker: No funds error sending order for ${grid}. Send NoFunds event`)
+                gridNoFundsEventService.send(grid);
+            }
+
             console.log("OrderSenderWorker: error sending order. TODO: check error", ex);
             await eventRepository.create(instance, 'OrderSendError', LEVEL_ERROR, ex.message);
             return;
@@ -102,7 +100,6 @@ exports.orderSenderWorker = async (job, done) => {
 
     } catch (ex) {
         console.error(`OrderSenderWorker: error processing send order event for instance ${grid}:`, ex);
-        return;
     } finally {
         console.log(`OrderSenderWorker lock released in orderSenderWorker for instance ${grid}`);
         if (lock != null) try{await lock.unlock();}catch(ex){console.error(ex);}
