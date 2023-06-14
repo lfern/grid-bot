@@ -25,6 +25,16 @@ class Bitfinex extends BaseExchangeCcxt {
         super('bitfinex2', params);
     }
 
+     /** @inheritdoc */
+     get currencies() {
+        let keys = Object.keys(this.ccxtExchange.currencies);;
+        if (this.params.paper) {
+            return keys.filter(x => x.startsWith('TEST'));
+        } else {
+            return keys.filter(x => !x.startsWith('TEST'));
+        }
+    }
+
     /** @inheritdoc */
     async getMarkets() {
         let markets = await super.getMarkets();
