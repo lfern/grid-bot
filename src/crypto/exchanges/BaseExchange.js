@@ -68,9 +68,23 @@ class BaseExchange {
 
     /**
      * 
+     */
+    get currencies() {
+        throw new Error("NOT IMPLEMENTED");
+    }
+
+    /**
+     * 
      * @returns {ccxt.Balance}
      */
     async fetchBalance() {
+        throw new Error("Not implemented");
+    }
+
+    /**
+     * @returns {ccxt.Balance}
+     */
+    async fetchBalanceDepositWallet() {
         throw new Error("Not implemented");
     }
 
@@ -203,6 +217,14 @@ class BaseExchange {
      * 
      */
     getWalletNames() {
+        throw new Error("NOT IMPLEMENTED");
+    }
+
+    /**
+     * 
+     * @param {string} method 
+     */
+    has(method) {
         throw new Error("NOT IMPLEMENTED");
     }
     

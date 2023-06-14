@@ -42,6 +42,11 @@ class Bitfinex extends BaseExchangeCcxt {
     }
 
     /** @inheritdoc */
+    async fetchBalanceDepositWallet() {
+        return await this.ccxtExchange.fetchBalance({type: 'exchange'});
+    }
+    
+    /** @inheritdoc */
     async fetchPositions(symbol = undefined) {
         let positions = await this.ccxtExchange.fetchPositions(symbol);
         let newPositions = [];
@@ -63,7 +68,7 @@ class Bitfinex extends BaseExchangeCcxt {
 
     /** @inheritdoc */
     getWalletNames() {
-        return ['spot', 'funding', 'future'];
+        return ['spot', 'funding', 'future', 'margin'];
     }
 
     /** @inheritdoc */
@@ -74,7 +79,15 @@ class Bitfinex extends BaseExchangeCcxt {
         }
         console.log("filtering");
         return Object.fromEntries(Object.entries(this.ccxtExchange.markets).filter(filter));
-    }    
+    }   
+    
+    /** @inheritdoc */
+    async transfer(code, amount, fromAccount, toAccount) {
+        if ((fromAccount == 'future' || toAccount == 'future') && code == 'USDT') {
+            code = 'USTF0';
+        }
+        await this.ccxtExchange.transfer(code, amount, fromAccount, toAccount);
+    }
 
     /** @inheritdoc */
     async watchBalance(accountType = undefined) {

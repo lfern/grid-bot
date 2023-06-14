@@ -93,9 +93,20 @@ class BaseExchangeCcxt extends BaseExchange {
     }
 
     /** @inheritdoc */
+    get currencies() {
+        return Object.keys(this.ccxtExchange.currencies);
+    }
+
+    /** @inheritdoc */
     async fetchBalance() {
         return await this.ccxtExchange.fetchBalance();
     }
+
+    /** @inheritdoc */
+    async fetchBalanceDepositWallet() {
+        return await this.ccxtExchange.fetchBalance();
+    }
+
     
     /** @inheritdoc */
     async fetchCurrentPrice(symbol) {
@@ -206,6 +217,12 @@ class BaseExchangeCcxt extends BaseExchange {
     /** @inheritdoc */
     getWalletNames() {
         return Object.keys(this.ccxtExchange.accountsById);
+    }
+
+    /** @inheritdoc */
+    has(method) {
+        // TODO: improve this!!
+        return (method in this.ccxtExchange.has) && this.ccxtExchange.hash[method];
     }
     
     /** @inheritdoc */
