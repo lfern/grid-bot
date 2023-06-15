@@ -75,6 +75,15 @@ class BaseExchange {
 
     /**
      * 
+     * @param {string} symbol 
+     * @param {string} side 
+     */
+    currencyNotFoundForMarket(symbol, side) {
+        throw new Exception("NOT IMPLEMENTED")
+    }
+
+    /**
+     * 
      * @returns {ccxt.Balance}
      */
     async fetchBalance() {
