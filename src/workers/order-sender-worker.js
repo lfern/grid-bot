@@ -66,10 +66,12 @@ exports.orderSenderWorker = async (job, done) => {
                 gridInstance.price
             );
         } catch (ex) {
-            // TODO: check if error is about insufficient funds
-            if (ex instanceof ccxt.InsufficientFunds) {
+            // TODO: check if error is about insufficient funds for any exchange
+            if (ex instanceof ccxt.InsufficientFunds ||
+                ex.message.includes('not enough tradable balance')) {
                 console.error(`OrderSenderWorker: No funds error sending order for ${grid}. Send NoFunds event`)
-                gridNoFundsEventService.send(grid);
+                let currency = exchange.currencyNotFoundForMarket(strategy.symbol, gridInstance.side);
+                gridNoFundsEventService.send(grid, currency);
             }
 
             console.log("OrderSenderWorker: error sending order. TODO: check error", ex);

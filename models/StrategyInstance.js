@@ -64,6 +64,10 @@ module.exports = (sequelize, DataTypes) => {
         nofunds_at: {
             allowNull: true,
             type: DataTypes.DATE
+        },
+        nofunds_currency: {
+            allowNull: true,
+            type: DataTypes.STRING,
         }
     }, {
         tableName: 'strategy_instances'

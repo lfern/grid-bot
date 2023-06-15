@@ -34,13 +34,14 @@ class BroadcastTransactionRepository {
         return results;
     }
 
-    async nextTransaction4Account(account) {
+    async nextTransaction4Account(account, currency) {
         let broadcastTransaction = null;
         await models.sequelize.transaction(async (transaction) => {
             broadcastTransaction = await models.BroadcastTransaction.findOne({
                 where: {
                     account_id: account,
                     status: 'created',
+                    currency: currency
                 },
                 transaction,
                 lock: transaction.LOCK.UPDATE,

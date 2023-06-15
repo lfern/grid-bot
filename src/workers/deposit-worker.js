@@ -7,6 +7,8 @@ const models = require('../../models');
 const { InstanceRepository } = require("../../repository/InstanceRepository");
 const orderSenderEventService = require("../services/OrderSenderEventService");
 const { default: ccxt } = require("ccxt");
+const notificationEventService = require("../services/NotificationEventService");
+const { LEVEL_CRITICAL, LEVEL_INFO } = require("../../repository/StrategyInstanceEventRepository");
 
 let transactionRepository = new BroadcastTransactionRepository();
 let accountRepository = new AccountRepository();
@@ -63,7 +65,7 @@ exports.checkDepositWorker = async function(job, done) {
                 console.log(`CheckDepositHandler: not main balance, so try to transfer for  ${accountId}`);
                 // fetch balance
                 let balance = await exchange.fetchBalanceDepositWallet();
-                console.log(balance);
+
                 // transfer money
                 let currencies = Object.keys(depositedAmounts);
                 let fromWallet = exchange.mainWalletAccountType();
@@ -77,21 +79,45 @@ exports.checkDepositWorker = async function(job, done) {
                         console.log(`CheckDepositHandler: Not enough balance for  ${currency} ${amount}`);
                     }
 
-                    console.log(`CheckDepositHandler: transfer ${currency} ${amount} from ${fromWallet} to ${toWallet}`);
+                    console.log(`CheckDepositHandler: transfer ${currency} ${amount} from ${fromWallet} to ${toWallet} for ${accountId}`);
                     try {
                         await exchange.transfer(currency, amount, fromWallet, toWallet);
                     } catch (ex) {
                         if (ex instanceof ccxt.PermissionDenied) {
-                            
+                            // Set transfer permissions to false an exit
+                            notificationEventService.send(
+                                'TransferError',
+                                LEVEL_CRITICAL,
+                                `Error trying to transfer funds ${currency} ${amount} from ${fromWallet} to ${toWallet} for account ${accountId}: ${ex.message}`,
+                                {account: accountId}
+                            ); 
+                            console.error(`CheckDeposithandler: no permissions error when trying to transfer${currency} ${amount} from ${fromWallet} to ${toWallet} for ${accountId}`);
+                            await accountRepository.setTransferPermission(accountId, false);
+                            break;
                         } else {
+                            // try later
+                            notificationEventService.send(
+                                'TransferError',
+                                LEVEL_CRITICAL,
+                                `Error trying to transfer funds ${currency} ${amount} from ${fromWallet} to ${toWallet} for account ${accountId}: ${ex.message}`,
+                                {account: accountId}
+                            );
+                            eventRepository.create()
                             throw ex;
                         }
                     }
                 }
             }
 
+            notificationEventService.send(
+                'DepositMatched',
+                LEVEL_INFO,
+                `Deposit matched for last transaction sent. Trying to send pending orders for account ${accountId}`,
+            );
+
             // flag all running instances to nofunds = false
             let gridIds = await instanceRepository.resetNoFundsRunningGrids4Account(accountId);
+            console.log(gridIds)
             // send order event
             gridIds.forEach(grid => {
                 console.log(`CheckDepositHandler: sending order sender event to grid ${grid}`)
@@ -123,7 +149,8 @@ exports.checkDepositWorker = async function(job, done) {
  * @param {BaseExchange} exchange 
  */
 const getDeposits = async function(exchange, since) {
-    return [fakeDeposit];
+    // return [fakeDeposit];
+    
     if (exchange.has('fetchDeposits')) {
         return await exchange.fetchDeposits(undefined, since);
     } else {
@@ -145,7 +172,7 @@ const matchDeposits = function(
     transactions.sort((a, b) => a.sent_at > b.sent_at ? -1 : (a.sent_at < b.sent_at ? 1 : 0));
 
     console.log(
-        `Matching deposits for account ${accountId}`,
+        `CheckDepositHandler: Matching deposits for account ${accountId}`,
         deposits.map(x => "Deposit:" + x.id + " " + new Date(x.timestamp).toISOString() + " " + x.currency + " " + x.amount),
         transactions.map(x => "Transaction:" + x.id + " " + x.sent_at.toISOString() +" " + x.sent_at.getTime())
     );
@@ -189,7 +216,7 @@ const matchDeposits = function(
     }
 
     console.log(
-        `Procesed transactions and Currencies for account ${accountId}`,
+        `CheckDepositHandler: Procesed transactions and Currencies for account ${accountId}`,
         processedTransactions.map(x => "Transaction:" + x.id + " " + x.sent_at.toISOString()),
         Object.entries(depositedAmounts).map(x => "Coin:" + x[0] + " " + x[1])
     );
@@ -197,7 +224,7 @@ const matchDeposits = function(
     return almostOneDeposited;
 }
 
-let fakeDeposit = {
+let fakeDeposit0 = {
     info: [
         20357540,
         'UST',

@@ -3,13 +3,19 @@ const { InstanceRepository } = require("../../repository/InstanceRepository");
 const { StrategyInstanceEventRepository, LEVEL_CRITICAL } = require("../../repository/StrategyInstanceEventRepository");
 const LockService = require('../services/LockService');
 
+/** @typedef {import('../services/GridNoFundsEventService').GridNoFundsMessageData} GridNoFundsMessageData} */
+
 let instanceRepository = new InstanceRepository();
 let transactionRepository = new BroadcastTransactionRepository();
 let eventRepository = new StrategyInstanceEventRepository()
 
 exports.gridNoFundsWorker = async function(job, done) {
-    let grid = job.data;
-    console.log("GridNoFundsWorker: checking no funds for grid", grid);
+    /** @type {GridNoFundsMessageData} */
+    let data = job.data
+    let grid = data.grid;
+    let currency = data.currency;
+    console.log("GridNoFundsWorker: checking no funds for grid", grid, currency);
+    
     let lock = null;
     // Lock account    
     let accountId;
@@ -26,11 +32,11 @@ exports.gridNoFundsWorker = async function(job, done) {
 
         let pendingTransactions = await transactionRepository.getTransactionsNotDeposited4Account(accountId);
 
-        if (!pendingTransactions.length) {
+        if (pendingTransactions.length == 0) {
             // send next transaction 
-            let transaction = await transactionRepository.nextTransaction4Account(accountId);
+            let transaction = await transactionRepository.nextTransaction4Account(accountId, currency);
             if (transaction == null) {
-                console.error(`GridNoFundsWorker: no transactions for this account ${accountId} (grid: ${grid})`);
+                console.error(`GridNoFundsWorker: no transactions for this account ${accountId} currency ${currency} (grid: ${grid})`);
                 await eventRepository.create(
                     instance,
                     'NoTransactions',
@@ -40,8 +46,11 @@ exports.gridNoFundsWorker = async function(job, done) {
             } else {
                 // broadcast transaction worker will send the transaction
             }
+        } else {
+
         }
 
+        instanceRepository.noFunds(grid, currency);
     } catch (ex) {
         console.error(`NoFundsWorker: error handling no funds event for ${accountId}:`, ex);
     } finally {

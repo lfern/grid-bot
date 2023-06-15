@@ -17,6 +17,10 @@ class AccountRepository {
 
         return await models.Account.findOne(options);
     }
+
+    async setTransferPermission(accountId, isEnabled) {
+        await models.Account.update({transfer_permission: isEnabled}, {where: {id: accountId}});
+    }
 }
 
 module.exports = {AccountRepository}

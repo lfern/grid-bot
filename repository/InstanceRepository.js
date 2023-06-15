@@ -102,6 +102,8 @@ class InstanceRepository {
 
                 await models.StrategyInstance.update({
                     nofunds: false,
+                    nofunds_at: null,
+                    nofunds_currency: null
                 }, {
                     where: {
                         id: nofundsGridsIds,
@@ -112,6 +114,19 @@ class InstanceRepository {
         });
 
         return nofundsGridsIds;
+    }
+
+    async noFunds(grid, currency) {
+        await models.StrategyInstance.update({
+            nofunds: true,
+            nofunds_at: models.sequelize.fn("NOW"),
+            currency: currency
+        }, {
+            where: {
+                id: grid,
+                nofunds: false,
+            }
+        });
     }
 }
 
