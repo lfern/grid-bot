@@ -174,16 +174,10 @@ exports.orderHandler = async function (accountId, dataOrder, delayed) {
 
     let thisWalletReceiveDeposits = account.account_type.account_type == exchange.mainWalletAccountType(); 
     
-    console.log("----------------------->", accountId, thisWalletReceiveDeposits);
-    console.log("----------------------->", accountId, isMainAccount);
-    console.log("----------------------->", accountId, (thisWalletReceiveDeposits && isMainAccount ) ||
-    (!thisWalletReceiveDeposits && !isMainAccount));
-
     if ((thisWalletReceiveDeposits && isMainAccount ) ||
         (!thisWalletReceiveDeposits && !isMainAccount)) {
         // only send when there are pending transactions
         let transactions = await transactionRepository.getTransactionsWithoutDepositForAccount(accountId);
-        console.log("------------------------------------>", accountId, transactions.length);
 
         if (transactions.length > 0) {
             console.log("BalanceHandler: pending transactions for this account, sending check deposit event", accountId);
