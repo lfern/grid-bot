@@ -15,6 +15,12 @@ const ccxt = require('ccxt');
  */
 
 /**
+ * CreateOrderOptions
+ * @typedef {Object} CreateOrderOptions
+ * @property {number|undefined} leverage 
+ */
+
+/**
  * Base exchange class
  */
 class BaseExchange {
@@ -59,10 +65,11 @@ class BaseExchange {
     * @param {'market'|'limit'|string} type 
     * @param {'buy'|'sell'|string} side 
     * @param {float} amount 
-    * @param {float} price 
+    * @param {float|undefined} price 
+    * @param {CreateOrderOptions} options
     * @returns {BaseExchangeOrder}
     */
-    async createOrder(symbol, type, side, amount, price = null) {
+    async createOrder(symbol, type, side, amount, price = undefined, options = {}) {
         throw new Error("NOT IMPLEMENTED");
     }
 

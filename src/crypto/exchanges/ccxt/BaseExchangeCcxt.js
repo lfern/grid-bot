@@ -80,14 +80,15 @@ class BaseExchangeCcxt extends BaseExchange {
     }
 
     /** @inheritdoc */
-    async createOrder(symbol, type, side, amount, price = null) {
+    async createOrder(symbol, type, side, amount, price = undefined, options = {}) {
         return new BaseExchangeCcxtOrder(
             await this.ccxtExchange.createOrder(
                 symbol,
                 type,
                 side,
                 amount,
-                price
+                price,
+                options
             )
         );
     }

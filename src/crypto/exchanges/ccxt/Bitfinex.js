@@ -1,4 +1,5 @@
 const {BaseExchangeCcxt} = require("./BaseExchangeCcxt");
+const { BaseExchangeCcxtOrder } = require("./BaseExchangeCcxtOrder");
 const {BaseExchangeCcxtPosition} = require("./BaseExchangeCcxtPosition");
 
 /** @typedef {import('../BaseExchange').ExchangeOptions} ExchangeOptions */
@@ -23,6 +24,22 @@ class Bitfinex extends BaseExchangeCcxt {
      */
     constructor(params = {}) {
         super('bitfinex2', params);
+    }
+
+    /** @inheritdoc */
+    async createOrder(symbol, type, side, amount, price = undefined, options = {}) {
+        return new BaseExchangeCcxtOrder(
+            await this.ccxtExchange.createOrder(
+                symbol,
+                type,
+                side,
+                amount,
+                price,
+                {
+                    lev: this.params.exchangeType != 'spot' ? options.leverage : undefined, 
+                }
+            )
+        );
     }
 
      /** @inheritdoc */
