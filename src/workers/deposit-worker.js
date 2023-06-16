@@ -93,7 +93,7 @@ exports.checkDepositWorker = async function(job, done) {
                             ); 
                             console.error(`CheckDeposithandler: no permissions error when trying to transfer${currency} ${amount} from ${fromWallet} to ${toWallet} for ${accountId}`);
                             await accountRepository.setTransferPermission(accountId, false);
-                            break;
+                            return;
                         } else {
                             // try later
                             notificationEventService.send(
@@ -102,7 +102,6 @@ exports.checkDepositWorker = async function(job, done) {
                                 `Error trying to transfer funds ${currency} ${amount} from ${fromWallet} to ${toWallet} for account ${accountId}: ${ex.message}`,
                                 {account: accountId}
                             );
-                            eventRepository.create()
                             throw ex;
                         }
                     }

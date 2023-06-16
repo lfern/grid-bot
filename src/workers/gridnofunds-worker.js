@@ -2,12 +2,14 @@ const { BroadcastTransactionRepository } = require("../../repository/BroadcastTr
 const { InstanceRepository } = require("../../repository/InstanceRepository");
 const { StrategyInstanceEventRepository, LEVEL_CRITICAL } = require("../../repository/StrategyInstanceEventRepository");
 const LockService = require('../services/LockService');
+const {exchangeInstanceFromAccount} = require('../services/ExchangeMarket');
+const NotificationEventService = require("../services/NotificationEventService");
 
 /** @typedef {import('../services/GridNoFundsEventService').GridNoFundsMessageData} GridNoFundsMessageData} */
 
 let instanceRepository = new InstanceRepository();
 let transactionRepository = new BroadcastTransactionRepository();
-let eventRepository = new StrategyInstanceEventRepository()
+let eventRepository = new StrategyInstanceEventRepository();
 
 exports.gridNoFundsWorker = async function(job, done) {
     /** @type {GridNoFundsMessageData} */
@@ -24,8 +26,21 @@ exports.gridNoFundsWorker = async function(job, done) {
         if (instance == null) {
             return;
         }
-        
+
         accountId = instance.strategy.account.id;
+        const exchange = exchangeInstanceFromAccount(instance.strategy.account);
+        if (exchange.mainWalletAccountType() != instance.strategy.account.account_type.account_type && 
+            instance.strategy.account.transfer_permission !== true
+        ) {
+            NotificationEventService.send(
+                'NoTransferPermission',
+                LEVEL_CRITICAL,
+                `Didn't send broadcast transaction for grid ${grid} because account ${accountId} doesn't have transfer permission`,
+                {account: accountId}
+            )
+            return;
+        }
+        
         console.log(`GridNoFundsWorker: try to acquire for ${accountId} (grid: ${grid})`);
         lock = await LockService.acquire(['account-' + accountId], 60000);
         console.log(`GridNoFundsWorker: lock acquired for account ${accountId} (grid: ${grid})`);
@@ -52,10 +67,10 @@ exports.gridNoFundsWorker = async function(job, done) {
 
         instanceRepository.noFunds(grid, currency);
     } catch (ex) {
-        console.error(`NoFundsWorker: error handling no funds event for ${accountId}:`, ex);
+        console.error(`GridNoFundsWorker: error handling no funds event for ${accountId}:`, ex);
     } finally {
         if (lock != null){try {await lock.unlock();} catch(ex){console.error("Error trying to unlock " ,ex);}}
-        console.log(`NoFundsWorker lock released for ${accountId} (grid: ${grid})`);
+        console.log(`GridNoFundsWorker lock released for ${accountId} (grid: ${grid})`);
         done(null, { message: "no funds event executed" });
     }
 }

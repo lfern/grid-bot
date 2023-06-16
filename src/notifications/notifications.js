@@ -10,7 +10,7 @@ const TelegramService = require('../services/TelegramService');
 exports.notificationHandler = async function (data, timestamp, telegramBotToken) {
     let telegramChats = await models.TelegramChatid.findAll({
         where: {
-            level: { [models.Sequelize.Op.gte]: data.level},
+            level: { [models.Sequelize.Op.lte]: data.level},
             is_valid: true,
         }
     });

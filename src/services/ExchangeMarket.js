@@ -85,13 +85,12 @@ const exchangeInstanceWithMarkets = async function(id, options) {
     return exchange;
 }
 
-
 /**
  * 
  * @param {Object} account 
  * @returns {BaseExchange}
  */
-const exchangeInstanceWithMarketsFromAccount = async function(account) {
+const exchangeInstanceFromAccount = async function(account, withMarkets = true) {
     let exchange = account.exchange;
     let account_type = account.account_type;
     if (!exchange || !account_type) {
@@ -108,18 +107,37 @@ const exchangeInstanceWithMarketsFromAccount = async function(account) {
         exchange = freshAccount.exchange;
     }
 
+    if (withMarkets) {
+        return await exchangeInstanceWithMarkets(exchange.exchange_name, {
+            exchangeType: account_type.account_type,
+            paper: account.paper,
+            rateLimit: 1000,  // testing 1 second though it is not recommended (I think we should not send too many requests/second)
+            apiKey: account.api_key,
+            secret: account.api_secret,
+        });
+    } else {
+        return exchangeInstance(exchange.exchange_name, {
+            exchangeType: account_type.account_type,
+            paper: account.paper,
+            rateLimit: 1000,  // testing 1 second though it is not recommended (I think we should not send too many requests/second)
+            apiKey: account.api_key,
+            secret: account.api_secret,
+        });
+    }
+}
 
-    return await exchangeInstanceWithMarkets(exchange.exchange_name, {
-        exchangeType: account_type.account_type,
-        paper: account.paper,
-        rateLimit: 1000,  // testing 1 second though it is not recommended (I think we should not send too many requests/second)
-        apiKey: account.api_key,
-        secret: account.api_secret,
-    });
+/**
+ * 
+ * @param {Object} account 
+ * @returns {BaseExchange}
+ */
+const exchangeInstanceWithMarketsFromAccount = async function(account) {
+    return await exchangeInstanceFromAccount(account, true);
 }
 
 module.exports = {
     initializeExchangeMarkets,
     exchangeInstanceWithMarkets,
-    exchangeInstanceWithMarketsFromAccount
+    exchangeInstanceWithMarketsFromAccount,
+    exchangeInstanceFromAccount
 }
