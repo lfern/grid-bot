@@ -63,7 +63,9 @@ exports.orderSenderWorker = async (job, done) => {
                 'limit',
                 gridInstance.side,
                 gridInstance.order_qty,
-                gridInstance.price
+                gridInstance.price, {
+                    leverage: 1
+                }
             );
         } catch (ex) {
             // TODO: check if error is about insufficient funds for any exchange
