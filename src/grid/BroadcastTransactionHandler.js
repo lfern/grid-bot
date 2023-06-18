@@ -22,6 +22,7 @@ const sendPendingTransactions = async function (isCancelledFn = () => false) {
             console.log(`Broadcast transaction ${broadcastTransaction.id} sent with ${txid}`);
         } catch (ex) {
             console.error(`Error sending broadcast transaction ${broadcastTransaction.id}`, ex);
+            broadcastTransaction.status = 'error';
             broadcastTransaction.sent_at = null;
             broadcastTransaction.error = ex.message;
             await broadcastTransaction.save();
