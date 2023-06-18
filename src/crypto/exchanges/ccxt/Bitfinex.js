@@ -123,16 +123,18 @@ class Bitfinex extends BaseExchangeCcxt {
     async transfer(code, amount, fromAccount, toAccount) {
         let params = {};
         if (fromAccount == 'future' || toAccount == 'future') {
-            let derivCode = code == 'USDT' ? 'USDTF0' : (code == 'TESTUSDT' ? 'TESTUSDTF0': code);
+            //let derivCode = code == 'USDT' ? 'USDTF0' : (code == 'TESTUSDT' ? 'TESTUSDTF0': code);
             if (fromAccount == 'future') {
-                params.currency_to = code;
-                params.currency = derivCode;
+                //params.currency_to = code;
+                //params.currency = derivCode;
+                fromAccount = 'derivatives';
             } else {
-                params.currency_to = derivCode;
+                //params.currency_to = derivCode;
+                toAccount = 'derivatives';
             }
         }
         
-        await this.ccxtExchange.transfer(code, amount, fromAccount, toAccount, params);
+        return await this.ccxtExchange.transfer(code, amount, fromAccount, toAccount, params);
     }
 
     /** @inheritdoc */
