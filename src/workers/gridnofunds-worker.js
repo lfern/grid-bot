@@ -28,7 +28,7 @@ exports.gridNoFundsWorker = async function(job, done) {
         }
 
         accountId = instance.strategy.account.id;
-        const exchange = exchangeInstanceFromAccount(instance.strategy.account);
+        const exchange = await exchangeInstanceFromAccount(instance.strategy.account);
         if (exchange.mainWalletAccountType() != instance.strategy.account.account_type.account_type && 
             instance.strategy.account.transfer_permission !== true
         ) {
