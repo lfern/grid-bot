@@ -60,9 +60,5 @@ module.exports = (sequelize, DataTypes) => {
         foreignKey: 'strategy_instance_grid_id'
     });
 
-    StrategyInstanceGrid.hasMany(StrategyInstanceRecoveryGrid, {
-        as: 'recovery_grids'
-    });
-
     return StrategyInstanceRecoveryGrid;
 }

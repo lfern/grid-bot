@@ -61,7 +61,7 @@ module.exports = (sequelize, DataTypes) => {
             type: DataTypes.INTEGER
         }
     }, {
-        tableName: 'strategy_instance_recovery_grids'
+        tableName: 'strategy_instance_recovery_grid_orders'
     });
  
     StrategyInstanceRecoveryGridOrder.StrategyInstance = StrategyInstanceRecoveryGridOrder.belongsTo(StrategyInstance, {

@@ -87,5 +87,13 @@ module.exports = (sequelize, DataTypes) => {
         foreignKey: 'strategy_instance_id'
     });
 
+    StrategyInstanceGrid.associate = function(models) {
+        models.StrategyInstanceGrid.StrategyInstanceRecoveryGrid = models.StrategyInstanceGrid.hasMany(models.StrategyInstanceRecoveryGrid, {
+            as: 'recovery_grids',
+            foreignKey: 'strategy_instance_grid_id'
+        });
+    }
+    
+
     return StrategyInstanceGrid;
 }
