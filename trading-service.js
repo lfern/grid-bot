@@ -19,6 +19,7 @@ const CheckAccountDepositEventService = require("./src/services/CheckAccountDepo
 const LockService = require("./src/services/LockService");
 const { checkDepositWorker } = require("./src/workers/deposit-worker");
 const { gridNoFundsWorker } = require("./src/workers/gridnofunds-worker");
+const { gridDirtyWorker } = require("./src/workers/gridDirtyWorker");
 require('events').defaultMaxListeners = 15;
 
 
@@ -125,6 +126,8 @@ myOrderSenderQueue.process(orderSenderWorker);
 myCheckAccountDepositQueue.process(checkDepositWorker);
 
 myGridNoFundsQueue.process(gridNoFundsWorker);
+
+myGridDirtyQueue.process(gridDirtyWorker);
 
 
 // query database for start/stop grids

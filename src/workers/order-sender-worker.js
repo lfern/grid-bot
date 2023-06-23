@@ -9,7 +9,7 @@ const { StrategyInstanceEventRepository, LEVEL_ERROR } = require('../../reposito
 const OrderSenderEventService = require('../services/OrderSenderEventService');
 const LockService = require('../services/LockService');
 const { default: ccxt } = require('ccxt');
-const gridNoFundsEventService = require('../services/GridNoFundsEventService');
+const GridNoFundsEventService = require('../services/GridNoFundsEventService');
 
 let instanceRepository = new InstanceRepository();
 let instanceAccRepository = new InstanceAccountRepository();
@@ -73,7 +73,7 @@ exports.orderSenderWorker = async (job, done) => {
                 ex.message.includes('not enough tradable balance')) {
                 console.error(`OrderSenderWorker: No funds error sending order for ${grid}. Send NoFunds event`)
                 let currency = exchange.currencyNotFoundForMarket(strategy.symbol, gridInstance.side);
-                gridNoFundsEventService.send(grid, currency);
+                GridNoFundsEventService.send(grid, currency);
             }
 
             console.log("OrderSenderWorker: error sending order. TODO: check error", ex);

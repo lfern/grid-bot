@@ -6,7 +6,7 @@ const { exchangeInstance } = require('../crypto/exchanges/exchanges');
 const { InstanceRepository } = require('../../repository/InstanceRepository');
 const { StrategyInstanceEventRepository, LEVEL_INFO } = require('../../repository/StrategyInstanceEventRepository');
 const OrderSenderEventService = require('../services/OrderSenderEventService');
-const gridDirtyEventService = require('../services/GridDirtyEventService');
+const GridDirtyEventService = require('../services/GridDirtyEventService');
 const LockService = require('../services/LockService');
 const CheckAccountDepositEventService = require('../services/CheckAccountDepositEventService');
 const { BroadcastTransactionRepository } = require('../../repository/BroadcastTransactionRepository');
@@ -81,7 +81,7 @@ exports.orderHandler = async function (accountId, dataOrder, delayed) {
                             gridCreator.setGridDirty(true, otherPreviousOrder);
                             // send grid dirty
                             console.log("OrderHandler: send grid dirty event:", strategyInstance.id);
-                            gridDirtyEventService.send(strategyInstance.id);
+                            GridDirtyEventService.send(strategyInstance.id);
                         } else {
                             if (result.gridUpdated) {
                                 console.log("OrderHandler: send order sender event after grid update:", strategyInstance.id);

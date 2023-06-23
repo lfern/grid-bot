@@ -34,6 +34,11 @@ class BaseExchangeCcxtOrder extends BaseExchangeOrder {
     }
 
     /** @inheritdoc */
+    get datetime_creation() {
+        return this.ccxtOrder.datetime_creation
+    }
+    
+    /** @inheritdoc */
     get feeCost() {
         return this.ccxtOrder.fee.cost;
     }
@@ -82,6 +87,11 @@ class BaseExchangeCcxtOrder extends BaseExchangeOrder {
     /** @inheritdoc */
     get timestamp() {
         return this.ccxtOrder.timestamp;
+    }
+
+    /** @inheritdoc */
+    get timestamp_creation() {
+        return this.ccxtOrder.timestamp_creation;
     }
 
     /** @inheritdoc */

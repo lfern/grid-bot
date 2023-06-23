@@ -5,9 +5,9 @@ const { exchangeInstanceWithMarketsFromAccount } = require("../services/Exchange
 const { BaseExchange } = require("../crypto/exchanges/BaseExchange");
 const models = require('../../models');
 const { InstanceRepository } = require("../../repository/InstanceRepository");
-const orderSenderEventService = require("../services/OrderSenderEventService");
+const OrderSenderEventService = require("../services/OrderSenderEventService");
 const { default: ccxt } = require("ccxt");
-const notificationEventService = require("../services/NotificationEventService");
+const NotificationEventService = require("../services/NotificationEventService");
 const { LEVEL_CRITICAL, LEVEL_INFO } = require("../../repository/StrategyInstanceEventRepository");
 
 let transactionRepository = new BroadcastTransactionRepository();
@@ -85,7 +85,7 @@ exports.checkDepositWorker = async function(job, done) {
                     } catch (ex) {
                         if (ex instanceof ccxt.PermissionDenied) {
                             // Set transfer permissions to false an exit
-                            notificationEventService.send(
+                            NotificationEventService.send(
                                 'TransferError',
                                 LEVEL_CRITICAL,
                                 `Error trying to transfer funds ${currency} ${amount} from ${fromWallet} to ${toWallet} for account ${accountId}: ${ex.message}`,
@@ -96,7 +96,7 @@ exports.checkDepositWorker = async function(job, done) {
                             return;
                         } else {
                             // try later
-                            notificationEventService.send(
+                            NotificationEventService.send(
                                 'TransferError',
                                 LEVEL_CRITICAL,
                                 `Error trying to transfer funds ${currency} ${amount} from ${fromWallet} to ${toWallet} for account ${accountId}: ${ex.message}`,
@@ -108,7 +108,7 @@ exports.checkDepositWorker = async function(job, done) {
                 }
             }
 
-            notificationEventService.send(
+            NotificationEventService.send(
                 'DepositMatched',
                 LEVEL_INFO,
                 `Deposit matched for last transaction sent. Trying to send pending orders for account ${accountId}`,
@@ -120,7 +120,7 @@ exports.checkDepositWorker = async function(job, done) {
             // send order event
             gridIds.forEach(grid => {
                 console.log(`CheckDepositHandler: sending order sender event to grid ${grid}`)
-                orderSenderEventService.send(grid);
+                OrderSenderEventService.send(grid);
             });
 
             await models.sequelize.transaction(async (transaction) => {

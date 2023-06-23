@@ -128,6 +128,23 @@ class InstanceRepository {
             }
         });
     }
+
+    async stopGrid(instanceId) {
+        await models.StrategyInstance.update({
+            running: false,
+            stopped_at: models.sequelize.fn('NOW'),
+        }, {
+            where: {id: instanceId}
+        })
+    }
+
+    async gridClean(instanceId) {
+        await models.StrategyInstance.update({
+            is_dirty: false,
+        }, {
+            where: {id: instanceId}
+        });
+    }
 }
 
 module.exports = {InstanceRepository}

@@ -33,6 +33,14 @@ class BaseExchangeOrder {
     }
 
     /**
+     * Order datetime creation
+     * @returns {string}
+     */
+    get datetime_creation() {
+        throw new Error("NOT IMPLEMENTED");
+    }
+    
+    /**
      * Fee cost
      * @returns {number}
      */
@@ -110,6 +118,14 @@ class BaseExchangeOrder {
      * @returns {number}
      */
     get timestamp() {
+        throw new Error("NOT IMPLEMENTED");
+    }
+
+    /**
+     * Order timestamp
+     * @returns {number}
+     */
+    get timestamp_creation() {
         throw new Error("NOT IMPLEMENTED");
     }
 

@@ -126,6 +126,17 @@ class BaseExchangeCcxt extends BaseExchange {
         );
     }
 
+    /** @inheritdoc  */
+    async fetchClosedOrders(symbol = undefined, since = undefined, limit = undefined) {
+        let orders = await this.ccxtExchange.fetchClosedOrder(symbol, since, limit);
+        let newOrders = [];
+        orders.forEach(o => {
+            newOrders.push(new BaseExchangeCcxtOrder(o));
+        })
+
+        return newOrders;
+    }
+
     /** @inheritdoc */
     async fetchDeposits(symbol = undefined, since = undefined, limit = undefined) {
         return await this.ccxtExchange.fetchDeposits(symbol, since, limit);
@@ -139,10 +150,32 @@ class BaseExchangeCcxt extends BaseExchange {
     }
 
     /** @inheritdoc */
+    async fetchOpenOrders(symbol = undefined, since = undefined, limit = undefined) {
+        let orders = await this.ccxtExchange.fetchOpenOrders(symbol, since, limit);
+        let newOrders = [];
+        orders.forEach(o => {
+            newOrders.push(new BaseExchangeCcxtOrder(o));
+        })
+
+        return newOrders;
+    }
+
+    /** @inheritdoc */
     async fetchOrder(id, symbol = undefined) {
         return new BaseExchangeCcxtOrder(
             await this.ccxtExchange.fetchOrder(id, symbol)
         );
+    }
+
+    /** @inheritdoc */
+    async fetchOrders(symbol = undefined, since = undefined, limit = undefined) {
+        let orders = await this.ccxtExchange.fetchOrders(symbol, since, limit);
+        let newOrders = [];
+        orders.forEach(o => {
+            newOrders.push(new BaseExchangeCcxtOrder(o));
+        })
+
+        return newOrders;
     }
 
     /** @inheritdoc */

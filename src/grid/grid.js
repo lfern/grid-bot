@@ -8,7 +8,21 @@ const {StrategyInstanceEventRepository, LEVEL_WARN, LEVEL_CRITICAL} = require('.
 /** @typedef {import('../crypto/exchanges/BaseExchange').BaseExchange} BaseExchange */
 /** @typedef {import('../crypto/exchanges/BaseExchangeOrder').BaseExchangeOrder} BaseExchangeOrder */
 
+/**
+ * @typedef {Object} GridNewOrderAfterExecution
+ * @property {number} price
+ * @property {number} amount
+ * @property {string} side
+ */
 
+/** 
+ * @typedef {Object} GridEntryFixData
+ * @property {Object[]} gridEntries,
+ * @property {number | null} indexFound,
+ * @property {string | null} sideFound,
+ * @property {number | null} subIndexFound,
+ * @property {GridNewOrderAfterExecution} newOrderData
+ */
 class GridManager {
     /**
      * 
@@ -493,6 +507,229 @@ class GridManager {
         entry.side = null;
         entry.active = null;
         entry.exchange_order_id = null;
+    }
+
+    async _getGridEntries() {
+        // search order in current grid or recovery table
+        return await models.StrategyInstanceGrid.findAll({
+            where: {
+                strategy_instance_id: this.instance.id,
+            },
+            include: [models.StrategyInstanceRecoveryGrid],
+            order: [
+                ['buy_order_id', 'ASC'],
+            ]
+        });
+
+
+    }
+
+    /**
+     * 
+     * @param {BaseExchangeOrder} order 
+     * @return {GridEntryFixData}
+     */
+    async _getGridEntriesAndFindOrder(order) {
+        let gridEntries = await this._getGridEntries();
+
+        // search for order
+        let indexFound = null;
+        let sideFound = null;
+        let subIndexFound = null;
+        for (let i=0;i<gridEntries.length;i++) {
+            let gridEntry = gridEntries[i];
+            if (gridEntry.exchange_order_id == order.id) {
+                indexFound = i;
+                sideFound = gridEntry.side;
+                break;
+            } else {
+                for (let j=0;j<gridEntry.recovery_grids.length;j++) {
+                    let recoverGrid = gridEntry.recovery_grids[j];
+                    if (recoveryGrid.exchange_order_id == order.id) {
+                        indexFound = i;
+                        subIndexFound = j;
+                        sideFound = recoverGrid.side;
+                        break;
+                    }
+                }
+            }
+        }
+
+        let newOrderData = null;
+        if (indexFound != null) {
+            if (sideFound == 'buy') {
+                if (indexFound > 0) {
+                    let previousGridEntry = gridEntries[indexFound - 1];
+                    newOrderData = {
+                        price: previousGridEntry.price,
+                        amount: previousGridEntry.sell_order_qty,
+                        side: 'sell',
+                        index: indexFound - 1,
+                    };
+                }
+            } else {
+                if (indexFound < gridEntries.length - 1) {
+
+                    let nextGridEntry = gridEntries[indexFound + 1];
+                    newOrderData = {
+                        price: this.exchange.priceToPrecision(
+                            this.strategy.symbol,
+                            nextGridEntry.price
+                        ),
+                        amount:  this.exchange.priceToPrecision(
+                            this.strategy.symbol,
+                            nextGridEntry.buy_order_qty
+                        ),
+                        side: 'buy',
+                        index: indexFound + 1,
+                    };
+                }
+            }
+        }
+
+        return {
+            gridEntries,
+            indexFound,
+            sideFound,
+            subIndexFound,
+            newOrderData
+        };
+    }
+
+    /**
+     * 
+     * @param {BaseExchangeOrder} order 
+     * @return {GridNewOrderAfterExecution|null}
+     */
+    async getOtherOrderAfterExecuteOrder(order) {
+        let result = this._getGridEntriesAndFindOrder(order);
+        return result.newOrderData;
+    }
+
+    /**
+     * 
+     * @param {BaseExchangeOrder} executedOrder 
+     * @param {BaseExchangeOrder} createdOrder 
+     */
+    async commitOrderExecution(executedOrder, createdOrder) {
+        let result = this._getGridEntriesAndFindOrder(executedOrder);
+        if (result.newOrderData != null) {
+            await models.sequelize.transaction(async (transaction) => {
+                let newEntry = gridEntries[result.newOrderData.index];
+                let oldEntry = gridEntries[result.indexFound];
+                let lastPosition = new BigNumber(oldEntry.position_before_order);
+                let lastOrderQty = new BigNumber(oldEntry.order_qty);
+                // create new
+                if (newEntry.active == null) {
+                    newEntry.position_before_order = this.exchange.amountToPrecision(
+                        this.strategy.symbol,
+                        oldEntry.side == 'buy' ? lastPosition.plus(lastOrderQty).toFixed() : lastPosition.minus(lastOrderQty).toFixed(),
+                    );
+                    newEntry.order_qty = result.newOrderData.amount;
+                    newEntry.side = result.newOrderData.side;
+                    newEntry.active = true;
+                    newEntry.exchange_order_id = createdOrder.id;
+                    await newEntry.save({transaction});
+                } else {
+                    await models.StrategyInstanceRecoveryGrid.create({
+                        strategy_instance_grid_id: this.instance.id, 
+                        order_qty: result.newOrderData.amount,
+                        side: result.newOrderData.side,
+                        exchange_order_id: createdOrder.id,
+                    }, {transaction});
+                }
+
+                // remove old
+                if (result.subIndexFound == null) {
+                    // remove entry from main table
+                    if (oldEntry.recovery_grids.length == 0) {
+                        this._resetGridEntry(oldEntry);
+                        await oldEntry.save({transaction});
+                    } else {
+                        let firstRecovery = oldEntry.recovery_grids[0];
+                        oldEntry.order_qty = firstRecovery.order_qty;
+                        oldEntry.side = firstRecovery.side;
+                        oldEntry.active = true;
+                        oldEntry.exchange_order_id = firstRecovery.exchange_order_id;
+                        await oldEntry.save({transaction});
+                        await firstRecovery.destroy({transaction});
+                    }
+                } else {
+                    // remove auxiliary table
+                    await oldEntry.recovery_grids[result.subIndexFound].destroy({transaction});
+                }
+        
+            });
+
+            await this.instanceAccRepository.createOrder(this.strategy.account.id, createdOrder);
+            await this.instanceAccRepository.updateOrder(this.strategy.account.id, executedOrder);
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    async checkClean() {
+        let gridEntries = await this._getGridEntries();
+        let currentExpectedSides = ['buy', null];
+        let lastSide = null;
+        let buys = 0;
+        let sells = 0;
+        // check only one gap between buys and sells
+        for(let i=0;i<gridEntries.length;i++) {
+            let entry = gridEntries[i];
+            if (entry.recovery_grids.length != 0) {
+                let error = `Invalid grid ${this.instance.id}, there are duplicated orders in grid at index ${i}`;
+                console.log(error);
+                this._printGrid(gridEntries);
+                return {ok: false, error};
+            }
+        
+            if (!currentExpectedSides.contains(entry.side)) {
+                let error = `Invalid grid ${this.instance.id}, expected ${','.join(currentExpectedSides)} found ${entry.side} (index ${i})`;
+                console.log(error);
+                this._printGrid(gridEntries);
+                return {ok: false, error};
+            }
+
+            if (entry.side == null && lastSide == 'buy') {
+                // here comes the gap
+                currentExpectedSides = ['sell', null];
+            } else if (entry.side == null && lastSide == 'sell') {
+                currentExpectedSides = [null];
+            } else if (entry.side != lastSide) {
+                let error = `Invalid grid ${this.instance.id}, expected ${lastSide} found ${entry.side} (index ${i})`;
+                console.log(error);
+                this._printGrid(gridEntries);
+                return {ok: false, error};
+            }
+
+            if (entry.side == 'buy') {
+                buys = buys + 1;
+            }
+
+            if (entry.side == 'sell') {
+                sells = sells + 1;
+            }
+
+            lastSide = entry.side;
+        }
+
+        if (buys != this.strategy.active_buys) {
+            let error = `Invalid grid ${this.instance.id}, expected ${this.strategy.active_buys} active buys but ${buys} found`;
+            console.log(error);
+            this._printGrid(gridEntries);
+            return {ok: false, error};
+        }
+
+        if (sells != this.strategy.active_sells) {
+            let error = `CheckGridClean: not valid grid ${this.instance.id}, expected ${this.strategy.active_sells} active sells but ${sells} found`;
+            console.log(error);
+            this._printGrid(gridEntries);
+            return {ok: false, error};
+        }
+
+        return {ok: true}
     }
 }
 
