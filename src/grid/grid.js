@@ -369,7 +369,7 @@ class GridManager {
         if (/*!allActives || */indexOrder == -1) {
             // if all actives then this order is processed before  
             ret.delayed = !allActives;
-            return;
+            return ret;
         }
 
         let canceledOrders = [];
@@ -377,7 +377,7 @@ class GridManager {
             if (indexHigherBuy != indexOrder) {
                 console.error("buy order executed is not the higher buy in ther grid???");
                 ret.gridDirty = true;
-                return;
+                return ret;
             }
 
             this._printGrid(gridEntries.map(x => x.get({ plain: true })));
@@ -389,7 +389,7 @@ class GridManager {
             if (indexLowerSell != indexOrder) {
                 console.error("sell order executed is not the lower sell in ther grid???");
                 ret.gridDirty = true;
-                return;
+                return ret;
             }
 
             this._printGrid(gridEntries.map(x => x.get({ plain: true })));
@@ -402,7 +402,7 @@ class GridManager {
         // cancel orders removed from grid
         if (!await this.cancelOrders(canceledOrders)){
             ret.gridDirty = true;
-            return;
+            return ret;
         }
         // if everything is ok save to database
         for(let i=0;i<gridEntries.length;i++) {
@@ -511,15 +511,19 @@ class GridManager {
 
     async _getGridEntries() {
         // search order in current grid or recovery table
-        return await models.StrategyInstanceGrid.findAll({
+        let entries = await models.StrategyInstanceGrid.findAll({
             where: {
-                strategy_instance_id: this.instance.id,
+                id: this.instance.id,
             },
-            include: [models.StrategyInstanceRecoveryGrid],
+            include: [models.StrategyInstanceGrid.StrategyInstanceRecoveryGrid],
             order: [
                 ['buy_order_id', 'ASC'],
             ]
         });
+
+        this._printGrid(entries);
+
+        return entries;
 
 
     }

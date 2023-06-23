@@ -7,7 +7,7 @@ const { exchangeInstanceWithMarketsFromAccount } = require('../services/Exchange
 const GridDirtyEventService = require('../services/GridDirtyEventService');
 const LockService = require('../services/LockService');
 const GridNoFundsEventService = require('../services/GridNoFundsEventService');
-const { StrategyInstanceEventRepository, LEVEL_ERROR } = require('../../repository/StrategyInstanceEventRepository');
+const { StrategyInstanceEventRepository, LEVEL_ERROR, LEVEL_CRITICAL } = require('../../repository/StrategyInstanceEventRepository');
 
 const recoveryRepository = new StrategyInstanceRecoveryGridRepository();
 const instanceRepository = new InstanceRepository();
@@ -58,7 +58,7 @@ exports.gridDirtyWorker = async (job, done) => {
             return;
         }
 
-        let status = await recoveryRepository.getCurrentRecoveryPhase();
+        let status = await recoveryRepository.getCurrentRecoveryPhase(instance.id);
 
         if (status == PHASE_DOWNLOADING) {
             rentry = await executeDownloadCycle(instance);
@@ -70,6 +70,7 @@ exports.gridDirtyWorker = async (job, done) => {
 
     } catch (ex) {
         console.error(`GridDirtyWorker: error handling grid dirty for grid ${grid}:`, ex);
+        reentry = false;
     } finally {
         if (lock != null){try {await lock.unlock();} catch(ex){console.error("Error trying to unlock " ,ex);}}
         console.log(`GridDirtyWorker lock released for grid ${grid}`);
@@ -180,7 +181,7 @@ const executeCheckCycle = async function(instance) {
     let cleanResponse = await gridManager.checkClean();
     if (!cleanResponse.ok) {
         console.error(`GridDirtyWorker: Grid is not clean, check if any order created for ${instance.id}: ${cleanResponse.error}`);
-        if (!recoveryRepository.ordersCreatedLastPhase(instance.id)) {
+        if (!await recoveryRepository.ordersCreatedLastPhase(instance.id)) {
             // close grid
             console.error(`GridDirtyWorker: No orders created and grid is not clean for ${instance.id}, stopping`);
 

@@ -65,6 +65,9 @@ exports.orderHandler = async function (accountId, dataOrder, delayed) {
                     if (!strategyInstance.running) {
                         console.log(`OrderHandler: order received while grid is not running ${dataOrder.id}`);
                         await pendingAccountRepository.removeOrder(strategyInstance.strategy.account.id, dataOrder);
+                    } else if (strategyInstance.is_dirty) {
+                        console.log(`OrderHandler: order received while grid is dirty ${dataOrder.id}`);
+                        // GridDirtyEventService.send(strategyInstance.id);
                     } else {
 
                         // TODO: check if there is a pending order in the grid with lower createdAt 

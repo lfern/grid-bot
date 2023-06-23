@@ -1,5 +1,4 @@
 const models = require('../models');
-const { BaseExchangeCcxtOrder } = require('../src/crypto/exchanges/ccxt/BaseExchangeCcxtOrder');
 
 /** @typedef {import('../src/crypto/exchanges/BaseExchangeOrder').BaseExchangeOrder} BaseExchangeOrder */
 
@@ -21,7 +20,7 @@ class StrategyInstanceRecoveryGridRepository {
     async addOrders(strategyId, orders) {
         for (let i=0; i < order.length; i++) {
             let order = orders[i];
-            await models.StrategyInstanceRecoverOrder.findOrCreate({
+            await models.StrategyInstanceRecoveryGridOrder.findOrCreate({
                 where: {
                     strategy_instance_id: strategyId,
                     order_id: order.id
@@ -45,7 +44,7 @@ class StrategyInstanceRecoveryGridRepository {
      * @param {int} instanceId 
      */
     async cleanup(instanceId) {
-        await models.StrategyInstanceRecoveryOrder.destroy({
+        await models.StrategyInstanceRecoveryGridOrder.destroy({
             where: {strategy_instance_id: instanceId}
         });
     }
@@ -57,7 +56,7 @@ class StrategyInstanceRecoveryGridRepository {
      * @returns {string}
      */
     async getCurrentRecoveryPhase(instanceId) {
-        let result = await models.StrategyInstanceRecoveryOrder.findAll({
+        let result = await models.StrategyInstanceRecoveryGridOrder.findAll({
             where: {strategy_instance_id: instanceId},
             attributes: ['status'],
             group: ['status']
@@ -83,7 +82,7 @@ class StrategyInstanceRecoveryGridRepository {
      * @returns {Date | null}
      */
     async getLastOrderTimestamp(instanceId) {
-        let order = await models.StrategyInstanceRecoverOrder.findOne({
+        let order = await models.StrategyInstanceRecoveryGridOrder.findOne({
             where: {
                 strategy_instance_id: instanceId,
             },
@@ -97,7 +96,7 @@ class StrategyInstanceRecoveryGridRepository {
             return order.creation_timestamp;
         }
         // look for open order with lowest timestamp creation
-        order = await models.StrategyInstanceGridOrder.findOne({
+        order = await models.StrategyInstanceOrder.findOne({
             where: {
                 id: instanceId,
                 status: 'open'
@@ -122,7 +121,7 @@ class StrategyInstanceRecoveryGridRepository {
      * @returns 
      */
     async getNextExecution(instanceId) {
-        return await models.StrategyInstanceRecoverOrder.findOne({
+        return await models.StrategyInstanceRecoveryGridOrder.findOne({
             where: {
                 strategy_instance_id: instanceId,
                 status: STATUS_DOWNLOADED,
@@ -140,7 +139,7 @@ class StrategyInstanceRecoveryGridRepository {
      * @param {int} instanceId 
      */
     async noMoreOrdersPending(instanceId) {
-        await models.StrategyInstanceRecoveryOrder.findOrCreate({
+        await models.StrategyInstanceRecoveryGridOrder.findOrCreate({
             where: {
                 strategy_instance_id: instanceId,
                 status: STATUS_ALL_DOWNLOADED
@@ -159,13 +158,13 @@ class StrategyInstanceRecoveryGridRepository {
      * @returns 
      */
     async ordersCreatedLastPhase(instanceId) {
-        let count = await models.StrategyInstanceRecoverOrder.count({
+        let count = await models.StrategyInstanceRecoveryGridOrder.count({
             where: {
                 strategy_instance_id: instanceId,
                 status: STATUS_EXECUTED_ORDER_CREATED 
             }
         });
-
+        
         return count > 0;
         
     }
@@ -177,7 +176,7 @@ class StrategyInstanceRecoveryGridRepository {
      */
     async resetNoMoreOrdersPending(instanceId) {
         await models.sequelize.transaction(async (transaction) => {
-            await models.StrategyInstanceGridOrder.update({
+            await models.StrategyInstanceRecoveryGridOrder.update({
                 status: STATUS_EXECUTED 
             }, {
                 where: {
@@ -187,7 +186,7 @@ class StrategyInstanceRecoveryGridRepository {
                 transaction
             });
 
-            await models.StrategyInstanceRecoverOrder.destroy({
+            await models.StrategyInstanceRecoveryGridOrder.destroy({
                 where : {
                     status: STATUS_ALL_DOWNLOADED,
                     strategy_instance_id: instanceId
