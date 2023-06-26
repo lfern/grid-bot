@@ -60,6 +60,16 @@ class BaseExchange {
     }
 
     /**
+     * 
+     * @param {string} symbol 
+     * @param {float} price 
+     * @returns {float}
+     */
+    costToPrecision(symbol, price) {
+        throw new Error("Not implemented")
+    }
+
+    /**
     * Create order
     * @param {string} symbol 
     * @param {'market'|'limit'|string} type 

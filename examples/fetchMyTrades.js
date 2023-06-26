@@ -6,8 +6,8 @@ const options = {
     symbol: {
       type: 'string',
     },
-    id: {
-      type: 'string',
+    orderid: {
+        type: 'string',
     },
     help: {
         type: 'boolean'
@@ -20,7 +20,7 @@ const {
 } = parseArgs({ args: process.argv.slice(2), options });
 
 if (values.help) {
-    console.log(`usage: --id id --symbol symbol --help`)
+    console.log(`usage: --symbol symbol --orderid order --help`)
     process.exit(0);
 }
 
@@ -32,4 +32,8 @@ let exchange = exchangeInstance(process.env.EXCHANGE, {
     secret: process.env.SECRET,
 });
 
-exchange.fetchOrderTrades(values.id, values.symbol).then(results => console.log("Results:", results));
+exchange.ccxtExchange.fetchMyTrades(values.symbol, undefined, 100, {
+    reverse: true,
+}).then(results => {//fetchOrderTrades(values.orderid, values.symbol).then(results => {
+    console.log("Results:", results);
+}).catch(ex => { console.log(ex)});

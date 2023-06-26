@@ -1,11 +1,12 @@
-const {Bitfinex} = require('../src/crypto/exchanges/Bitfinex');
+const {exchangeInstance} = require('../src/crypto/exchanges/exchanges');
 require('dotenv').config();
 
-let bitfinex = new Bitfinex({
-    paper: true,
-    apiKey: process.env.BITFINEX_APIKEY,
-    secret: process.env.BITFINEX_SECRET,
-    exchangeType: 'margin'
+let exchange = exchangeInstance(process.env.EXCHANGE, {
+    paper: process.env.PAPER === 'true',
+    exchangeType: process.env.EXCHANGE_TYPE || 'spot',
+    verbose: process.env.EXCHANGE_VERBOSE === 'true',
+    apiKey: process.env.APIKEY,
+    secret: process.env.SECRET,
 });
 
-bitfinex.fetchBalance().then(results => console.log("Results:", results));
+exchange.fetchBalance().then(results => console.log("Results:", results));

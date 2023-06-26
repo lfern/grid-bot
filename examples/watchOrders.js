@@ -1,20 +1,20 @@
-const {Bitfinex} = require('../src/crypto/exchanges/Bitfinex');
+const {exchangeInstance} = require('../src/crypto/exchanges/exchanges');
 const { watchMyOrders, watchMyTrades } = require('../src/crypto/exchanges/utils/procutils');
 require('dotenv').config();
 const ccxt = require('ccxt');
 
 
 (async () => {
-    let bitfinex = new Bitfinex({
-        verbose:false,
-        paper: true,
-        apiKey: process.env.BITFINEX_APIKEY,
-        secret: process.env.BITFINEX_SECRET,
-        exchangeType: 'spot' // spot, futures, swap
+    let exchange = exchangeInstance(process.env.EXCHANGE, {
+        paper: process.env.PAPER === 'true',
+        exchangeType: process.env.EXCHANGE_TYPE || 'spot',
+        verbose: process.env.EXCHANGE_VERBOSE === 'true',
+        apiKey: process.env.APIKEY,
+        secret: process.env.SECRET,
     });
 
-    await bitfinex.loadMarkets();
-    let res = watchMyOrders(bitfinex, undefined, (orders) => {
+    await exchange.loadMarkets();
+    let res = watchMyOrders(exchange, undefined, (orders) => {
         for(let i=0;i<orders.length;i++) {
             let order = orders[i];
             console.log("Order:", order);
