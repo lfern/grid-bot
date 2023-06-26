@@ -1,10 +1,32 @@
-const {Bitfinex} = require('../src/crypto/exchanges/Bitfinex');
+const {exchangeInstance} = require('../src/crypto/exchanges/exchanges');
 require('dotenv').config();
+const {parseArgs} = require('util');
 
-let bitfinex = new Bitfinex({
-    paper: true,
-    apiKey: process.env.BITFINEX_APIKEY,
-    secret: process.env.BITFINEX_SECRET
+const options = {
+    symbol: {
+      type: 'string',
+    },
+    help: {
+        type: 'boolean'
+    }
+};
+
+const {
+    values,
+    positionals,
+} = parseArgs({ args: process.argv.slice(2), options });
+
+if (values.help) {
+    console.log(`usage: --symbol symbol --help`)
+    process.exit(0);
+}
+
+let exchange = exchangeInstance(process.env.EXCHANGE, {
+    paper: process.env.PAPER === 'true',
+    exchangeType: process.env.EXCHANGE_TYPE || 'spot',
+    verbose: process.env.EXCHANGE_VERBOSE === 'true',
+    apiKey: process.env.APIKEY,
+    secret: process.env.SECRET,
 });
 
-bitfinex.fetchPositions().then(results => results.forEach(result => console.log("Contracts:", result.contracts)));
+exchange.fetchPositions(values.symbol).then(results => results.forEach(result => console.log("Contracts:", result.contracts)));

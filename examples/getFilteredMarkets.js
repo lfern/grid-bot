@@ -1,11 +1,12 @@
-const {Bitfinex} = require('../src/crypto/exchanges/Bitfinex');
+const {exchangeInstance} = require('../src/crypto/exchanges/exchanges');
 
-
-let bitfinex = new Bitfinex({
-    paper: false
+let exchange = exchangeInstance(process.env.EXCHANGE, {
+    paper: process.env.PAPER === 'true',
+    exchangeType: process.env.EXCHANGE_TYPE || 'spot',
+    verbose: process.env.EXCHANGE_VERBOSE === 'true',
 });
 
-bitfinex.loadMarkets().then(markets => { 
+exchange.loadMarkets().then(markets => { 
     console.log("Markets:", Object.keys(markets));
-    console.log("Filtered:" , Object.keys(bitfinex.markets));
+    console.log("Filtered:" , Object.keys(exchange.markets));
 });

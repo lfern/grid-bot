@@ -1,18 +1,19 @@
 const { NotSupported } = require('ccxt');
-const {Bitfinex} = require('../src/crypto/exchanges/Bitfinex');
+const {exchangeInstance} = require('../src/crypto/exchanges/exchanges');
 require('dotenv').config();
 
-let bitfinex = new Bitfinex({
-    // paper: true,
-    apiKey: process.env.BITFINEX_APIKEY,
-    secret: process.env.BITFINEX_SECRET,
-    // exchangeType: 'margin'
+let exchange = exchangeInstance(process.env.EXCHANGE, {
+    paper: process.env.PAPER === 'true',
+    exchangeType: process.env.EXCHANGE_TYPE || 'spot',
+    verbose: process.env.EXCHANGE_VERBOSE === 'true',
+    apiKey: process.env.APIKEY,
+    secret: process.env.SECRET,
 });
 
-bitfinex.fetchDeposits().then(results => console.log("Results:", results)).catch(ex => {
+exchange.fetchDeposits().then(results => console.log("Results:", results)).catch(ex => {
     if (ex instanceof NotSupported) {
         console.log("fetchDeposits not supported");
-        return bitfinex.fetchTransactions().then(results => console.log("Results:", results));
+        return exchange.fetchTransactions().then(results => console.log("Results:", results));
     }
 
     throw ex;
