@@ -1,23 +1,20 @@
-const {Bitfinex} = require('../src/crypto/exchanges/Bitfinex');
+const {exchangeInstance} = require('../src/crypto/exchanges/exchanges');
 require('dotenv').config();
-const ccxt = require('ccxt');
-const { BaseExchange } = require('../src/crypto/exchanges/BaseExchange');
 
-/** @type {BaseExchange} */
-let bitfinex = new Bitfinex({
-    paper: false,
-    apiKey: process.env.BITFINEX_APIKEY,
-    secret: process.env.BITFINEX_SECRET,
-    exchangeType: 'futures',
-    verbose: false,
+let exchange = exchangeInstance(process.env.EXCHANGE, {
+    paper: process.env.PAPER === 'true',
+    exchangeType: process.env.EXCHANGE_TYPE || 'spot',
+    verbose: process.env.EXCHANGE_VERBOSE === 'true',
+    apiKey: process.env.APIKEY,
+    secret: process.env.SECRET,
 });
 
 (async () => {
     try {
-        await bitfinex.loadMarkets();
-        console.log(await bitfinex.fetchBalance());
-        //let transfer = await bitfinex.transfer('USDT', 1.6, 'future', 'spot');
-        //console.log("Results:", transfer);
+        await exchange.loadMarkets();
+        console.log(await exchange.fetchBalance());
+        let transfer = await exchange.transfer('USDT', 1.6, 'future', 'spot');
+        console.log("Results:", transfer);
         
     } catch(ex) {
         console.log(ex)

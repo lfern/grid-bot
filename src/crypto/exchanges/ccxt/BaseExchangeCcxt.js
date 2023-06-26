@@ -80,6 +80,11 @@ class BaseExchangeCcxt extends BaseExchange {
     }
 
     /** @inheritdoc */
+    costToPrecision(symbol, price) {
+        return this.ccxtExchange.costToPrecision(symbol, price);
+    }
+
+    /** @inheritdoc */
     async createOrder(symbol, type, side, amount, price = undefined, options = {}) {
         return new BaseExchangeCcxtOrder(
             await this.ccxtExchange.createOrder(

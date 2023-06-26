@@ -1,18 +1,47 @@
-const {Bitfinex} = require('../src/crypto/exchanges/Bitfinex');
+const {exchangeInstance} = require('../src/crypto/exchanges/exchanges');
 require('dotenv').config();
-const ccxt = require('ccxt');
-const { BaseExchange } = require('../src/crypto/exchanges/BaseExchange');
+const {parseArgs} = require('util');
 
-/** @type {BaseExchange} */
-let bitfinex = new Bitfinex({
-    paper: true,
-    apiKey: process.env.BITFINEX_APIKEY,
-    secret: process.env.BITFINEX_SECRET,
-    exchangeType: 'futures',
-    verbose: true,
+const options = {
+    symbol: {
+      type: 'string',
+    },
+    side: {
+      type: 'string',
+    },
+    amount: {
+        type: 'string',
+    },
+    type: {
+        type: 'string',
+    },
+    price: {
+        type: 'string',
+    },
+    help: {
+        type: 'boolean'
+    }
+};
+
+const {
+    values,
+    positionals,
+} = parseArgs({ args: process.argv.slice(2), options });
+
+if (values.help) {
+    console.log(`usage: --symbol symbol --side <buy|sell> --amount amount --type <limit|market> --price price --help`)
+    process.exit(0);
+}
+
+let exchange = exchangeInstance(process.env.EXCHANGE, {
+    paper: process.env.PAPER === 'true',
+    exchangeType: process.env.EXCHANGE_TYPE || 'spot',
+    verbose: process.env.EXCHANGE_VERBOSE === 'true',
+    apiKey: process.env.APIKEY,
+    secret: process.env.SECRET,
 });
 
-bitfinex.createOrder("TESTBTC/TESTUSDT:TESTUSDT", 'market', 'buy', 0.0006, undefined, {
+exchange.createOrder(values.symbol, values.type, values.side, values.amount, values.price, {
     leverage: 1
 }).then(results => {
     console.log("Results:", results);

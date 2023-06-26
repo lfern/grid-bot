@@ -91,9 +91,9 @@ class GridManager {
         }
     
         var cost = this.orderQty.multipliedBy(gridPrice);
-            let gridPriceEntry = this.exchange.priceToPrecision(symbol, gridPrice.toFixed()); 
+        let gridPriceEntry = this.exchange.priceToPrecision(symbol, gridPrice.toFixed());
         let orderQtyEntry = this.exchange.amountToPrecision(symbol, this.orderQty.toFixed());
-        let costEntry = this.exchange.priceToPrecision(symbol, cost.toFixed());
+        let costEntry = this.exchange.costToPrecision(symbol, cost.toFixed());
     
         let newGridEntry = {
             strategy_instance_id: this.instance.id,
@@ -481,7 +481,7 @@ class GridManager {
         }
 
         if (dstSide == 'sell') {
-            dstEntry.order_qty = this.exchange.priceToPrecision(
+            dstEntry.order_qty = this.exchange.amountToPrecision(
                 this.strategy.symbol,
                 dstEntry.sell_order_qty
             );
@@ -490,7 +490,7 @@ class GridManager {
             dstEntry.active = false;
             dstEntry.exchange_order_id = null;
         } else {
-            dstEntry.order_qty = this.exchange.priceToPrecision(
+            dstEntry.order_qty = this.exchange.amountToPrecision(
                 this.strategy.symbol,
                 dstEntry.buy_order_qty
             );
@@ -580,7 +580,7 @@ class GridManager {
                             this.strategy.symbol,
                             nextGridEntry.price
                         ),
-                        amount:  this.exchange.priceToPrecision(
+                        amount:  this.exchange.amountToPrecision(
                             this.strategy.symbol,
                             nextGridEntry.buy_order_qty
                         ),

@@ -1,11 +1,19 @@
-const {Bitfinex} = require('../src/crypto/exchanges/Bitfinex');
+const {exchangeInstance} = require('../src/crypto/exchanges/exchanges');
+require('dotenv').config();
 
-
-let bitfinex = new Bitfinex({
-    paper: true
+let exchange = exchangeInstance(process.env.EXCHANGE, {
+    paper: process.env.PAPER === 'true',
+    exchangeType: process.env.EXCHANGE_TYPE || 'spot',
+    verbose: process.env.EXCHANGE_VERBOSE === 'true',
 });
 
-bitfinex.loadMarkets().then(markets =>{ 
-    console.log("Markets:", markets);
-    console.log("Currencies:", bitfinex.ccxtExchange.currencies);
+exchange.loadMarkets().then(markets =>{ 
+    console.log("Markets:");
+    console.log(JSON.stringify(markets, null, 2));
+    console.log("Currencies:");
+    console.log(JSON.stringify(exchange.ccxtExchange.currencies, null, 2));
+
+    console.log(exchange.amountToPrecision('BTC/USDT', 0.00015));
+    //console.log(exchange.priceToPrecision("BTC/USDT", 100.55));
+    //console.log(exchange.amountToPrecision("BTC/USDT", 0.00006));
 });

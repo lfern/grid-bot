@@ -2,7 +2,7 @@ const models = require('../../models');
 const { GridManager } = require('./grid');
 const { exchangeInstanceWithMarketsFromAccount } = require('../services/ExchangeMarket');
 const { InstanceRepository } = require('../../repository/InstanceRepository');
-const { StrategyInstanceEventRepository, LEVEL_INFO } = require('../../repository/StrategyInstanceEventRepository');
+const { StrategyInstanceEventRepository, LEVEL_INFO, LEVEL_CRITICAL } = require('../../repository/StrategyInstanceEventRepository');
 const OrderSenderEventService = require('../services/OrderSenderEventService');
 /** @typedef {import('bull').Queue} Queue} */
 
@@ -97,6 +97,12 @@ exports.startGrids = async function(isCancelled) {
                 OrderSenderEventService.send(instance.id);
             } catch (ex) {
                 console.error("StartGrids:", ex);
+                eventRepository.create(
+                    instance,
+                    'CreationError',
+                    LEVEL_CRITICAL,
+                    ex.message
+                );
             }
         }
     } catch (ex){
