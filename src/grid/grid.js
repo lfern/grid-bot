@@ -69,7 +69,7 @@ class GridManager {
         return null;
     }
 
-    _createGridEntry(level, gridId, side, active, currentPrice) {
+    async _createGridEntry(level, gridId, side, active, currentPrice) {
         let symbol = this.strategy.symbol;
         let gridPrice;
         let diffPrice;
@@ -95,14 +95,17 @@ class GridManager {
         let buyOrderQtyEntry = this.exchange.amountToPrecision(symbol, this.orderQty.toFixed());
         let costEntry = this.exchange.costToPrecision(symbol, cost.toFixed());
     
-        let quantity = models.StrategyQuantity.findOne({
-            strategy_id: this.strategy.id,
-            id_buy: gridId,
+        let quantity = await models.StrategyQuantity.findOne({
+            where: {
+                strategy_id: this.strategy.id,
+                id_buy: gridId,
+            }
         });
+
         let sellOrderQtyEntry = buyOrderQtyEntry;
         if (quantity != null) {
-            buyOrderQtyEntry = quantity.buy_order_qty;
-            sellOrderQtyEntry = quantity.sell_order_qty;
+            buyOrderQtyEntry = this.exchange.amountToPrecision(symbol, quantity.buy_order_qty);
+            sellOrderQtyEntry = this.exchange.amountToPrecision(symbol, quantity.sell_order_qty);
         }
 
         let newGridEntry = {
@@ -135,10 +138,10 @@ class GridManager {
         return newGridEntry;
     }
 
-    createGridEntries(currentPrice) {
+    async createGridEntries(currentPrice) {
         let currentPriceBig = new BigNumber(currentPrice);
         let entries = [];
-        entries.push(this._createGridEntry(
+        entries.push(await this._createGridEntry(
             0,
             this.strategy.sell_orders + 1,
             'buy',
@@ -147,7 +150,7 @@ class GridManager {
         ));
 
         for (let i=0; i < this.strategy.sell_orders; i++) {
-            entries.push(this._createGridEntry(
+            entries.push(await this._createGridEntry(
                 i+1,
                 this.strategy.sell_orders - i,
                 'sell',
@@ -157,7 +160,7 @@ class GridManager {
         }
 
         for (let i=0; i < this.strategy.buy_orders; i++) {
-            entries.push(this._createGridEntry(
+            entries.push(await this._createGridEntry(
                 i+1,
                 this.strategy.sell_orders + i + 2,
                 'buy',

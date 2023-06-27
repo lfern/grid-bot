@@ -74,7 +74,7 @@ exports.startGrids = async function(isCancelled) {
                 }
 
                 let gridCreator = new GridManager(exchange, instance, strategy)
-                let entries = gridCreator.createGridEntries(currentPrice);
+                let entries = await gridCreator.createGridEntries(currentPrice);
                 await models.sequelize.transaction(async (transaction) => {
                     for (let i=0;i<entries.length;i++) {
                         await models.StrategyInstanceGrid.create(
