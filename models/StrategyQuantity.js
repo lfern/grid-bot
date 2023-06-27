@@ -20,9 +20,9 @@ module.exports = (sequelize, DataTypes) => {
             primaryKey: true,
             autoIncrement: true
         },
-        strategy_instance_id: {
+        strategy_id: {
             allowNull: false,
-            type: DataTypes.INTEGER,
+            type: DataTypes.UUID,
             references: {
                 model: {
                     tableName: 'strategies'
@@ -44,7 +44,7 @@ module.exports = (sequelize, DataTypes) => {
         },
         
     }, {
-        tableName: 'strategy_instance_quantities'
+        tableName: 'strategy_quantities'
     });
  
     StrategyQuantity.Strategy = StrategyQuantity.belongsTo(Strategy, {
