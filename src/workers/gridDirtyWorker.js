@@ -187,7 +187,7 @@ const executeCheckCycle = async function(instance) {
 
             await instanceRepository.stopGrid(instance.id);
             eventRepository.create(
-                this.instance, 'GridDirty',
+                instance, 'GridDirty',
                 LEVEL_CRITICAL,
                 `Could not recover grid. Stopping grid!!!`
             );
