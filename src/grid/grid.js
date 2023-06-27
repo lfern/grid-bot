@@ -120,15 +120,16 @@ class GridManager {
         };
     
         if (active) {
+            let thisOrderQty = side == 'sell' ? sellOrderQtyEntry : buyOrderQtyEntry;
             let position = this.currentPosition.plus(
-                this.orderQty.multipliedBy(
+                new BigNumber(thisOrderQty).multipliedBy(
                     side == 'sell' ? -(level-1) : level-1
                 )
             );
     
             newGridEntry = _.extend(newGridEntry, {
                 position_before_order: this.exchange.amountToPrecision(symbol, position.toFixed()),
-                order_qty: side == 'sell' ? sellOrderQtyEntry : buyOrderQtyEntry,
+                order_qty: thisOrderQty,
                 side: side,
                 active: false,
                 exchange_order_id: null,
