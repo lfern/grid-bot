@@ -92,17 +92,27 @@ class GridManager {
     
         var cost = this.orderQty.multipliedBy(gridPrice);
         let gridPriceEntry = this.exchange.priceToPrecision(symbol, gridPrice.toFixed());
-        let orderQtyEntry = this.exchange.amountToPrecision(symbol, this.orderQty.toFixed());
+        let buyOrderQtyEntry = this.exchange.amountToPrecision(symbol, this.orderQty.toFixed());
         let costEntry = this.exchange.costToPrecision(symbol, cost.toFixed());
     
+        let quantity = models.StrategyQuantity.findOne({
+            strategy_id: this.strategy.id,
+            id_buy: gridId,
+        });
+        let sellOrderQtyEntry = buyOrderQtyEntry;
+        if (quantity != null) {
+            buyOrderQtyEntry = quantity.buy_order_qty;
+            sellOrderQtyEntry = quantity.sell_order_qty;
+        }
+
         let newGridEntry = {
             strategy_instance_id: this.instance.id,
             price: gridPriceEntry,
             buy_order_id: gridId,
-            buy_order_qty: orderQtyEntry,
+            buy_order_qty: buyOrderQtyEntry,
             buy_order_cost: costEntry,
             sell_order_id: gridId + 1,
-            sell_order_qty: orderQtyEntry,
+            sell_order_qty: sellOrderQtyEntry,
             sell_order_cost: costEntry,
         };
     
@@ -441,14 +451,14 @@ class GridManager {
         // insert other side entry
         let otherSideIndex = index + signIndex;
         if (otherSideIndex >= 0 && otherSideIndex < gridEntries.length) {
-            this._createNextSideGridEntry(gridEntries[index], gridEntries[otherSideIndex], dstSide);
+            this._createNextSideGridEntry(gridEntries[index], gridEntries[otherSideIndex], dstSide, true);
         }
         // insert +nth buy if posible
         let indexSideToAdd = index + activeOrders * (-signIndex);
         let indexSideFrom = indexSideToAdd + signIndex;
         if (indexSideToAdd >= 0 && indexSideToAdd < gridEntries.length &&
             indexSideFrom >= 0 && indexSideFrom < gridEntries.length) {
-            this._createNextSideGridEntry(gridEntries[indexSideFrom], gridEntries[indexSideToAdd], srcSide);
+            this._createNextSideGridEntry(gridEntries[indexSideFrom], gridEntries[indexSideToAdd], srcSide, false);
         }
         // remove buy at index
         this._resetGridEntry(executedEntry);
@@ -465,9 +475,18 @@ class GridManager {
         }
     }
 
-    _createNextSideGridEntry(srcEntry, dstEntry, dstSide) {
+    _createNextSideGridEntry(srcEntry, dstEntry, dstSide, otherSide) {
         let lastPosition = new BigNumber(srcEntry.position_before_order);
         let lastOrderQty = new BigNumber(srcEntry.order_qty);
+        let nextOrderQty = srcEntry.order_qty;
+        if (!otherSide) {
+            if (srcEntry.side == 'buy') {
+                nextOrderQty = dstEntry.buy_order_qty;
+            } else {
+                nextOrderQty = dstEntry.sell_order_qty;
+            }
+        }
+
         if (srcEntry.side == 'buy') {
             dstEntry.position_before_order = this.exchange.amountToPrecision(
                 this.strategy.symbol,
@@ -483,7 +502,7 @@ class GridManager {
         if (dstSide == 'sell') {
             dstEntry.order_qty = this.exchange.amountToPrecision(
                 this.strategy.symbol,
-                dstEntry.sell_order_qty
+                nextOrderQty//dstEntry.sell_order_qty
             );
 
             dstEntry.side = dstSide;
@@ -492,7 +511,7 @@ class GridManager {
         } else {
             dstEntry.order_qty = this.exchange.amountToPrecision(
                 this.strategy.symbol,
-                dstEntry.buy_order_qty
+                nextOrderQty//dstEntry.buy_order_qty
             );
 
             dstEntry.side = dstSide;
