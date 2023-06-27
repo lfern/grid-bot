@@ -125,7 +125,7 @@ class GridManager {
     
             newGridEntry = _.extend(newGridEntry, {
                 position_before_order: this.exchange.amountToPrecision(symbol, position.toFixed()),
-                order_qty: orderQtyEntry,
+                order_qty: side == 'sell' ? sellOrderQtyEntry : buyOrderQtyEntry,
                 side: side,
                 active: false,
                 exchange_order_id: null,
