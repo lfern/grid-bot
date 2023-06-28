@@ -20,6 +20,24 @@ const tradingServiceBootstrap = async function () {
     }
 }
 
+const eventsWatcherBootstrap = async function() {
+    try {
+        NotificationEventService.send('EventsWatcherStarted', LEVEL_WARN, 'Events Watcher service initialized or reinitialized');
+    } catch (ex) {
+        console.error(ex);
+    }
+}
+
+const notificationServicerBootstrap = async function() {
+    try {
+        NotificationEventService.send('NotificationServiceStarted', LEVEL_WARN, 'Notification service initialized or reinitialized');
+    } catch (ex) {
+        console.error(ex);
+    }
+}
+
 module.exports = {
-    tradingServiceBootstrap
+    tradingServiceBootstrap,
+    eventsWatcherBootstrap,
+    notificationServicerBootstrap
 }

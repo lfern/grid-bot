@@ -130,8 +130,6 @@ myGridNoFundsQueue.process(gridNoFundsWorker);
 
 myGridDirtyQueue.process(gridDirtyWorker);
 
-
-// query database for start/stop grids
 tradingServiceBootstrap().then(res=> console.log("bootstrap executed")).catch(ex => console.error("Error in bootstrap", ex));
 
 const promises = [

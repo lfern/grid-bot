@@ -9,10 +9,13 @@ const {
 
 const {exchangeInstance} = require('./src/crypto/exchanges/exchanges');
 const models = require('./models');
+const Redis = require("ioredis");
 const {initLogger, captureConsoleLog} = require("./src/utils/logger");
 const TradeEventService = require('./src/services/TradeEventService');
 const OrderEventService = require('./src/services/OrderEventService');
 const BalanceEventService = require('./src/services/BalanceEventService');
+const NotificationEventService = require('./src/services/NotificationEventService');
+const { eventsWatcherBootstrap } = require("./src/bootstrap");
 
 initLogger(
     process.env.LOGGER_SERVICE_ALL_FILE || 'logs/events-all.log' ,
@@ -21,32 +24,44 @@ initLogger(
 
 captureConsoleLog();
 
-const myTradesQueue = new Queue("myTrades", {
-    // Redis configuration
-    redis: {
-        host: process.env.REDIS_SERVER || "127.0.0.1",
-        port: process.env.REDIS_PORT || 6379,
-        password: process.env.REDIS_PASSWORD,
-    },
-});
+const redisConnOpts = {
+    maxRetriesPerRequest: null,
+    enableReadyCheck: false,
+    host: process.env.REDIS_SERVER || "127.0.0.1",
+    port: process.env.REDIS_PORT || 6379,
+    password: process.env.REDIS_PASSWORD,
+};
 
-const myOrdersQueue = new Queue("myOrders", {
-    // Redis configuration
-    redis: {
-        host: process.env.REDIS_SERVER || "127.0.0.1",
-        port: process.env.REDIS_PORT || 6379,
-        password: process.env.REDIS_PASSWORD,
-    },
-});
+const client = new Redis(redisConnOpts);
+const subscriber = new Redis(redisConnOpts);
 
-const myBalanceQueue = new Queue("myBalance", {
-    // Redis configuration
-    redis: {
-        host: process.env.REDIS_SERVER || "127.0.0.1",
-        port: process.env.REDIS_PORT || 6379,
-        password: process.env.REDIS_PASSWORD,
+
+const opts = {
+  // redisOpts here will contain at least a property of
+  // connectionName which will identify the queue based on its name
+    createClient: function (type, redisOpts) {
+        switch (type) {
+            case "client":
+                return client;
+            case "subscriber":
+                return subscriber;
+            case "bclient":
+                return new Redis(redisConnOpts, redisOpts);
+            default:
+                throw new Error("Unexpected connection type: ", type);
+        }
     },
-});
+};
+
+const myTradesQueue = new Queue("myTrades", opts);
+
+const myOrdersQueue = new Queue("myOrders", opts);
+
+const myBalanceQueue = new Queue("myBalance", opts);
+
+const myNotificationQueue = new Queue("myNotification", opts);
+
+NotificationEventService.init(myNotificationQueue);
 
 TradeEventService.init(myTradesQueue);
 OrderEventService.init(myOrdersQueue);
@@ -66,6 +81,8 @@ const removeAccount = function(account) {
         delete currentConnections[account];
     }
 };
+
+eventsWatcherBootstrap().then(res=> console.log("bootstrap executed")).catch(ex => console.error("Error in bootstrap", ex));
 
 (async () => {
     while (true) {
