@@ -192,7 +192,7 @@ async function getPosition(exchange, symbol, accountType) {
         }
     } else {
         console.log('Fetching positions...');
-        let positions = await exchange.fetchPositions(symbol);
+        let positions = await exchange.fetchPositions([symbol]);
         if (positions.length > 0) {
             position = positions[0].contracts;
         }
