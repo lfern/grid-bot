@@ -3,5 +3,5 @@ const {bitmex} = require('./bitmex');
 
 exports.overrides = {
     bitfinex2,
-    bitmex
+    //bitmex
 }

@@ -1633,6 +1633,9 @@ class bitmex extends ccxt.pro.bitmex {
         //
         const status = this.parseOrderStatus(this.safeString(order, 'ordStatus'));
         const marketId = this.safeString(order, 'symbol');
+        if (market === undefined) {
+            market = this.safeMarket(marketId);
+        }
         const symbol = this.safeSymbol(marketId, market);
         const timestamp = this.parse8601(this.safeString(order, 'timestamp'));
         const lastTradeTimestamp = this.parse8601(this.safeString(order, 'transactTime'));
