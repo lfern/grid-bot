@@ -55,10 +55,12 @@ module.exports = (sequelize, DataTypes) => {
         tableName: 'strategy_instance_recovery_grids'
     });
  
-    StrategyInstanceRecoveryGrid.StrategyInstance = StrategyInstanceRecoveryGrid.belongsTo(StrategyInstanceGrid, {
-        as: 'strategy_instance_grid',
-        foreignKey: 'strategy_instance_grid_id'
-    });
+    StrategyInstanceRecoveryGrid.associate = function(models) {
+        models.StrategyInstanceRecoveryGrid.StrategyInstance = models.StrategyInstanceRecoveryGrid.belongsTo(models.StrategyInstanceGrid, {
+            as: 'strategy_instance_grid',
+            foreignKey: 'strategy_instance_grid_id'
+        });
+    }
 
     return StrategyInstanceRecoveryGrid;
 }

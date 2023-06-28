@@ -47,10 +47,12 @@ module.exports = (sequelize, DataTypes) => {
         tableName: 'strategy_quantities'
     });
  
-    StrategyQuantity.Strategy = StrategyQuantity.belongsTo(Strategy, {
-        as: 'strategy',
-        foreignKey: 'strategy_id'
-    });
+    StrategyQuantity.associate = function(models) {
+        models.StrategyQuantity.Strategy = models.StrategyQuantity.belongsTo(models.Strategy, {
+            as: 'strategy',
+            foreignKey: 'strategy_id'
+        });
+    }
 
     return StrategyQuantity;
 }

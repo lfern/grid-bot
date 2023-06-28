@@ -96,15 +96,17 @@ module.exports = (sequelize, DataTypes) => {
         tableName: 'accounts'
     });
  
-    Account.Exchange = Account.belongsTo(Exchange, {
-        as: 'exchange',
-        foreignKey: 'exchange_id'
-    });
+    Account.associate = function(models) {
+        models.Account.Exchange = models.Account.belongsTo(models.Exchange, {
+            as: 'exchange',
+            foreignKey: 'exchange_id'
+        });
 
-    Account.AccountType = Account.belongsTo(AccountType, {
-        as: 'account_type',
-        foreignKey: 'account_type_id'
-    });
+        models.Account.AccountType = models.Account.belongsTo(models.AccountType, {
+            as: 'account_type',
+            foreignKey: 'account_type_id'
+        });
+    }
 
     return Account;
 }

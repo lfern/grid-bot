@@ -60,15 +60,17 @@ module.exports = (sequelize, DataTypes) => {
         tableName: 'exchange_markets'
     });
  
-    ExchangeMarket.Exchange = ExchangeMarket.belongsTo(Exchange, {
-        as: 'exchange',
-        foreignKey: 'exchange_id'
-    });
+    ExchangeMarket.associate = function(models) {
+        models.ExchangeMarket.Exchange = models.ExchangeMarket.belongsTo(models.Exchange, {
+            as: 'exchange',
+            foreignKey: 'exchange_id'
+        });
 
-    ExchangeMarket.AccountType = ExchangeMarket.belongsTo(AccountType, {
-        as: 'account_type',
-        foreignKey: 'account_type_id'
-    });
+        models.ExchangeMarket.AccountType = models.ExchangeMarket.belongsTo(models.AccountType, {
+            as: 'account_type',
+            foreignKey: 'account_type_id'
+        });
+    }
 
     return ExchangeMarket;
 }

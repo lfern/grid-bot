@@ -82,15 +82,17 @@ module.exports = (sequelize, DataTypes) => {
         tableName: 'strategy_instance_trades'
     });
  
-    StrategyInstanceTrade.StrategyInstanceOrder = StrategyInstanceTrade.belongsTo(StrategyInstanceOrder, {
-        as: 'strategy_instance_order',
-        foreignKey: 'strategy_instance_order_id'
-    });
+    StrategyInstanceTrade.associate = function(models) {
+        models.StrategyInstanceTrade.StrategyInstanceOrder = models.StrategyInstanceTrade.belongsTo(models.StrategyInstanceOrder, {
+            as: 'strategy_instance_order',
+            foreignKey: 'strategy_instance_order_id'
+        });
 
-    StrategyInstanceTrade.Account = StrategyInstanceTrade.belongsTo(Account, {
-        as: 'account',
-        foreignKey: 'account_id'
-    });
+        models.StrategyInstanceTrade.Account = models.StrategyInstanceTrade.belongsTo(models.Account, {
+            as: 'account',
+            foreignKey: 'account_id'
+        });
+    }
 
     return StrategyInstanceTrade;
 }

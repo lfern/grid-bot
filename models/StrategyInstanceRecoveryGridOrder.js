@@ -64,10 +64,12 @@ module.exports = (sequelize, DataTypes) => {
         tableName: 'strategy_instance_recovery_grid_orders'
     });
  
-    StrategyInstanceRecoveryGridOrder.StrategyInstance = StrategyInstanceRecoveryGridOrder.belongsTo(StrategyInstance, {
-        as: 'strategy_instance',
-        foreignKey: 'strategy_instance_id'
-    });
+    StrategyInstanceRecoveryGridOrder.associate = function(models) {
+        models.StrategyInstanceRecoveryGridOrder.StrategyInstance = models.StrategyInstanceRecoveryGridOrder.belongsTo(models.StrategyInstance, {
+            as: 'strategy_instance',
+            foreignKey: 'strategy_instance_id'
+        });
+    }
 
     return StrategyInstanceRecoveryGridOrder;
 }

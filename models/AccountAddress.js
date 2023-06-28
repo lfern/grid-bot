@@ -44,10 +44,12 @@ module.exports = (sequelize, DataTypes) => {
         tableName: 'account_addresses'
     });
  
-    AccountAddress.Account = AccountAddress.belongsTo(Account, {
-        as: 'account',
-        foreignKey: 'account_id'
-    });
+    AccountAddress.associate = function(models) {
+        models.AccountAddress.Account = models.AccountAddress.belongsTo(models.Account, {
+            as: 'account',
+            foreignKey: 'account_id'
+        });
+    }
 
     return AccountAddress;
 }

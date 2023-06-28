@@ -55,11 +55,13 @@ module.exports = (sequelize, DataTypes) => {
     }, {
         tableName: 'account_pending_orders'
     });
- 
-    AccountPendingOrder.Account = AccountPendingOrder.belongsTo(Account, {
-        as: 'account',
-        foreignKey: 'account_id'
-    });
+
+    AccountPendingOrder.associate = function(models) {
+        models.AccountPendingOrder.Account = models.AccountPendingOrder.belongsTo(models.Account, {
+            as: 'account',
+            foreignKey: 'account_id'
+        });
+    }
 
     return AccountPendingOrder;
 }

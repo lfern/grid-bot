@@ -55,10 +55,12 @@ module.exports = (sequelize, DataTypes) => {
         tableName: 'account_pending_trades'
     });
  
-    AccountPendingTrade.Account = AccountPendingTrade.belongsTo(Account, {
-        as: 'account',
-        foreignKey: 'account_id'
-    });
+    AccountPendingTrade.associate = function(models) {
+        models.AccountPendingTrade.Account = models.AccountPendingTrade.belongsTo(models.Account, {
+            as: 'account',
+            foreignKey: 'account_id'
+        });
+    }
 
     return AccountPendingTrade;
 }

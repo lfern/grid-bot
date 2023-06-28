@@ -50,10 +50,12 @@ module.exports = (sequelize, DataTypes) => {
         tableName: 'strategy_instance_events'
     });
  
-    StrategyInstanceEvent.StrategyInstance = StrategyInstanceEvent.belongsTo(StrategyInstance, {
-        as: 'strategy_instance',
-        foreignKey: 'strategy_instance_id'
-    });
+    StrategyInstanceEvent.associate = function(models) {
+        models.StrategyInstanceEvent.StrategyInstance = models.StrategyInstanceEvent.belongsTo(models.StrategyInstance, {
+            as: 'strategy_instance',
+            foreignKey: 'strategy_instance_id'
+        });
+    }
 
     return StrategyInstanceEvent;
 }

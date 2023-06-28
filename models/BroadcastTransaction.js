@@ -103,10 +103,12 @@ module.exports = (sequelize, DataTypes) => {
         tableName: 'broadcast_transactions'
     });
  
-    BroadcastTransaction.Account = BroadcastTransaction.belongsTo(Account, {
-        as: 'account',
-        foreignKey: 'account_id'
-    });
+    BroadcastTransaction.associate = function(models) {
+        models.BroadcastTransaction.Account = models.BroadcastTransaction.belongsTo(models.Account, {
+            as: 'account',
+            foreignKey: 'account_id'
+        });
+    }
 
     return BroadcastTransaction;
 }
