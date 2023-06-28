@@ -126,9 +126,9 @@ class GridManager {
                     side == 'sell' ? -(level-1) : level-1
                 )
             );
-    
+
             newGridEntry = _.extend(newGridEntry, {
-                position_before_order: this.exchange.amountToPrecision(symbol, position.toFixed()),
+                position_before_order: this.exchange.amountToPrecision2(symbol, position.toFixed()),
                 order_qty: thisOrderQty,
                 side: side,
                 active: false,
@@ -492,12 +492,12 @@ class GridManager {
         }
 
         if (srcEntry.side == 'buy') {
-            dstEntry.position_before_order = this.exchange.amountToPrecision(
+            dstEntry.position_before_order = this.exchange.amountToPrecision2(
                 this.strategy.symbol,
                 lastPosition.plus(lastOrderQty).toFixed()
             );
         } else {
-            dstEntry.position_before_order = this.exchange.amountToPrecision(
+            dstEntry.position_before_order = this.exchange.amountToPrecision2(
                 this.strategy.symbol,
                 lastPosition.minus(lastOrderQty).toFixed()
             );
@@ -648,7 +648,7 @@ class GridManager {
                 let lastOrderQty = new BigNumber(oldEntry.order_qty);
                 // create new
                 if (newEntry.active == null) {
-                    newEntry.position_before_order = this.exchange.amountToPrecision(
+                    newEntry.position_before_order = this.exchange.amountToPrecision2(
                         this.strategy.symbol,
                         oldEntry.side == 'buy' ? lastPosition.plus(lastOrderQty).toFixed() : lastPosition.minus(lastOrderQty).toFixed(),
                     );
@@ -712,7 +712,7 @@ class GridManager {
                 return {ok: false, error};
             }
         
-            if (!currentExpectedSides.contains(entry.side)) {
+            if (!currentExpectedSides.includes(entry.side)) {
                 let error = `Invalid grid ${this.instance.id}, expected ${','.join(currentExpectedSides)} found ${entry.side} (index ${i})`;
                 console.log(error);
                 this._printGrid(gridEntries);
