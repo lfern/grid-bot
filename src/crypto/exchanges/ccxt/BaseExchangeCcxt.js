@@ -70,6 +70,23 @@ class BaseExchangeCcxt extends BaseExchange {
     }
 
     /** @inheritdoc */
+    amountToPrecision2(symbol, amount) {
+        try {
+            if (amount < 0) {
+                return -this.ccxtExchange.amountToPrecision(symbol, -amount);
+            } else {
+                return this.ccxtExchange.amountToPrecision(symbol, -amount);
+            }
+        } catch (ex) {
+            if (ex instanceof ccxt.ArgumentsRequired) {
+                return 0;
+            }
+            throw ex;
+        }
+
+    }
+
+    /** @inheritdoc */
     async cancelOrder(id, symbol = null) {
         return await this.ccxtExchange.cancelOrder(id, symbol);
     }
@@ -81,7 +98,15 @@ class BaseExchangeCcxt extends BaseExchange {
 
     /** @inheritdoc */
     costToPrecision(symbol, price) {
-        return this.ccxtExchange.costToPrecision(symbol, price);
+        try {
+            return this.ccxtExchange.costToPrecision(symbol, price);
+
+        } catch (ex) {
+            if (ex instanceof ccxt.ArgumentsRequired) {
+                return 0;
+            }
+            throw ex;
+        }
     }
 
     /** @inheritdoc */
@@ -195,8 +220,8 @@ class BaseExchangeCcxt extends BaseExchange {
     }
 
     /** @inheritdoc */
-    async fetchPositions(symbol = undefined) {
-        let positions = await this.ccxtExchange.fetchPositions(symbol);
+    async fetchPositions(symbols = undefined) {
+        let positions = await this.ccxtExchange.fetchPositions(symbols);
         let newPositions = [];
         positions.forEach(p => {
             newPositions.push(new BaseExchangeCcxtPosition(p));
@@ -303,6 +328,19 @@ class BaseExchangeCcxt extends BaseExchange {
     /** @inheritdoc */
     priceToPrecision(symbol, price) {
         return this.ccxtExchange.priceToPrecision(symbol, price);
+    }
+
+    /** @inheritdoc */
+    priceToPrecision2(symbol, price) {
+        try {
+            return this.ccxtExchange.priceToPrecision(symbol, price);
+        } catch (ex) {
+            if (ex instanceof ccxt.ArgumentsRequired) {
+                return 0;
+            }
+            throw ex;
+        }
+
     }
 
     /** @inheritdoc */

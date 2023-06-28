@@ -21,7 +21,17 @@ const ccxt = require('ccxt');
         }
     });
 
-    res.promise.then(res => {
+    let res2 = watchMyTrades(exchange, undefined, (trades) => {
+        for(let i=0;i<trades.length;i++) {
+            let trade = trades[i];
+            console.log("Trade:", trade);
+        }
+    });
+
+    Promise.all([
+        res.promise,
+        res2.promise
+    ]).then(res => {
         console.log(`ws closed`)
     }).catch(err => {
         console.log(`ws closed with error`)

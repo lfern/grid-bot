@@ -11,9 +11,9 @@ exchange.loadMarkets().then(markets =>{
     console.log("Markets:");
     console.log(JSON.stringify(markets, null, 2));
     console.log("Currencies:");
-    console.log(JSON.stringify(exchange.ccxtExchange.currencies, null, 2));
+    //console.log(JSON.stringify(exchange.ccxtExchange.currencies, null, 2));
 
-    console.log(exchange.amountToPrecision('BTC/USDT', 0.00015));
+    console.log(exchange.ccxtExchange.amountToPrecision2('BTC/USDT:USDT', 0.12));
     //console.log(exchange.priceToPrecision("BTC/USDT", 100.55));
     //console.log(exchange.amountToPrecision("BTC/USDT", 0.00006));
 });

@@ -1,6 +1,6 @@
 const {BaseExchangeCcxt} = require("./BaseExchangeCcxt");
 const { BaseExchangeCcxtOrder } = require("./BaseExchangeCcxtOrder");
-const {TRUNCATE} = require('ccxt');
+const {TRUNCATE, ArgumentsRequired} = require('ccxt');
 
 const marketsFilter = {
     "spot": ([k, v]) => v.spot,
@@ -24,16 +24,29 @@ class Bitmex extends BaseExchangeCcxt {
     }
 
     /** @inheritdoc */
-    amountToPrecision(symbol, amount) {
-        let newAmount = this.ccxtExchange.amountToPrecision(symbol, amount);
-        symbol = this.ccxtExchange.safeSymbol(symbol);
-        const market = this.ccxtExchange.market(symbol);
-        const oldPrecision = this.ccxtExchange.safeValue(this.ccxtExchange.options, 'oldPrecision');
-        if (market['spot'] && !oldPrecision) {
-            newAmount = this.ccxtExchange.convertToRealAmount(market['base'], newAmount);
-        }
+    amountToPrecision2(symbol, amount) {
+        try {
+            let newAmount;
+            if (amount < 0) {
+                newAmount = -this.ccxtExchange.amountToPrecision(symbol, -amount);
+            } else {
+                newAmount = this.ccxtExchange.amountToPrecision(symbol, amount);
+            }
 
-        return newAmount;
+            symbol = this.ccxtExchange.safeSymbol(symbol);
+            const market = this.ccxtExchange.market(symbol);
+            const oldPrecision = this.ccxtExchange.safeValue(this.ccxtExchange.options, 'oldPrecision');
+            if (market['spot'] && !oldPrecision) {
+                newAmount = this.ccxtExchange.convertToRealAmount(market['base'], newAmount);
+            }
+
+            return newAmount;
+        } catch (ex) {
+            if (ex instanceof ArgumentsRequired) {
+                return 0;
+            }
+            throw ex;
+        }
     }
 
 

@@ -44,6 +44,16 @@ class BaseExchange {
     }
 
     /**
+     * 
+     * @param {string} symbol 
+     * @param {float} amount 
+     * @returns {float}
+     */
+    amountToPrecision2(symbol, amount) {
+        throw new Error("Not implemented")
+    }
+    
+    /**
      * Cancel order
      * @param {string} id 
      * @param {string | undefined} symbol 
@@ -338,6 +348,16 @@ class BaseExchange {
         throw new Error("Not implemented")
     }
 
+    /**
+     * 
+     * @param {string} symbol 
+     * @param {float} price 
+     * @returns {float}
+     */
+    priceToPrecision2(symbol, price) {
+        throw new Error("Not implemented")
+    }
+    
     /**
      * 
      */

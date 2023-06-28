@@ -29,4 +29,7 @@ let exchange = exchangeInstance(process.env.EXCHANGE, {
     secret: process.env.SECRET,
 });
 
-exchange.fetchPositions(values.symbol).then(results => results.forEach(result => console.log("Contracts:", result.contracts)));
+exchange.fetchPositions([values.symbol]).then(results => {
+    console.log(results);
+    results.forEach(result => console.log("Contracts:", result.contracts))
+});
