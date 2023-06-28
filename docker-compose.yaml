@@ -36,6 +36,10 @@ services:
       - app-network
     #command: ./wait-for.sh db:27017 -- /home/node/app/node_modules/.bin/nodemon app.js
     command: npm run start-events-watcher
+    logging:
+        driver: journald
+        options:
+            tag: trading-service
 
   events-watcher:
     image: grid-bot-nodejs
@@ -70,6 +74,10 @@ services:
       - app-network
     #command: ./wait-for.sh db:27017 -- /home/node/app/node_modules/.bin/nodemon app.js
     command: npm run start-trading-service
+    logging:
+        driver: journald
+        options:
+            tag: events-watcher
 
   notification-service:
     image: grid-bot-nodejs
@@ -106,6 +114,10 @@ services:
       - app-network
     #command: ./wait-for.sh db:27017 -- /home/node/app/node_modules/.bin/nodemon app.js
     command: npm run start-notification-service
+    logging:
+        driver: journald
+        options:
+            tag: notification-service
 
   postgres:
     image: postgres:14.1-alpine
