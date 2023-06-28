@@ -85,8 +85,8 @@ class Bitfinex extends BaseExchangeCcxt {
     }
     
     /** @inheritdoc */
-    async fetchPositions(symbol = undefined) {
-        let positions = await this.ccxtExchange.fetchPositions(symbol);
+    async fetchPositions(symbols = undefined) {
+        let positions = await this.ccxtExchange.fetchPositions(symbols);
         let newPositions = [];
         positions.forEach(p => {
             newPositions.push(new BaseExchangeCcxtPosition({
