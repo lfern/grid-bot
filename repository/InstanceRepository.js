@@ -145,6 +145,16 @@ class InstanceRepository {
             where: {id: instanceId}
         });
     }
+
+    async getPendingSendOrdersRuningInstances() {
+        return await models.StrategyInstance.findAll({
+            where: {
+                running: true,
+                '$grid.active$': false,
+            },
+            include: [models.StrategyInstance.StrategyInstanceGrid]
+        });
+    }
 }
 
 module.exports = {InstanceRepository}

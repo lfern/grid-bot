@@ -20,6 +20,7 @@ const LockService = require("./src/services/LockService");
 const { checkDepositWorker } = require("./src/workers/deposit-worker");
 const { gridNoFundsWorker } = require("./src/workers/gridnofunds-worker");
 const { gridDirtyWorker } = require("./src/workers/gridDirtyWorker");
+const { tradingServiceBootstrap } = require("./src/bootstrap");
 require('events').defaultMaxListeners = 15;
 
 
@@ -131,6 +132,7 @@ myGridDirtyQueue.process(gridDirtyWorker);
 
 
 // query database for start/stop grids
+tradingServiceBootstrap().then(res=> console.log("bootstrap executed")).catch(ex => console.error("Error in bootstrap", ex));
 
 const promises = [
     startStopProcessPromise(),
@@ -147,5 +149,4 @@ Promise.race(promises.map(x => x.promise))
         console.error("Error waiting processes: ", ex);
         promises.forEach(x => x.cancel());
     });
-
 
