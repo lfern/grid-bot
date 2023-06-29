@@ -75,7 +75,7 @@ class BaseExchangeCcxt extends BaseExchange {
             if (amount < 0) {
                 return -this.ccxtExchange.amountToPrecision(symbol, -amount);
             } else {
-                return this.ccxtExchange.amountToPrecision(symbol, -amount);
+                return this.ccxtExchange.amountToPrecision(symbol, amount);
             }
         } catch (ex) {
             if (ex instanceof ccxt.ArgumentsRequired) {
