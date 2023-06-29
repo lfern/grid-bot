@@ -69,7 +69,7 @@ class GridManager {
         return null;
     }
 
-    async _createGridEntry(level, gridId, side, active, currentPrice) {
+    async _createGridEntry(level, gridId, side, active, currentPrice, previousPosition) {
         let symbol = this.strategy.symbol;
         let gridPrice;
         let diffPrice;
@@ -121,14 +121,9 @@ class GridManager {
     
         if (active) {
             let thisOrderQty = side == 'sell' ? sellOrderQtyEntry : buyOrderQtyEntry;
-            let position = this.currentPosition.plus(
-                new BigNumber(thisOrderQty).multipliedBy(
-                    side == 'sell' ? -(level-1) : level-1
-                )
-            );
 
             newGridEntry = _.extend(newGridEntry, {
-                position_before_order: this.exchange.amountToPrecision2(symbol, position.toFixed()),
+                position_before_order: this.exchange.amountToPrecision2(symbol, previousPosition.toFixed()),
                 order_qty: thisOrderQty,
                 side: side,
                 active: false,
@@ -142,32 +137,42 @@ class GridManager {
     async createGridEntries(currentPrice) {
         let currentPriceBig = new BigNumber(currentPrice);
         let entries = [];
+        let currentPosition = this.currentPosition;
+
         entries.push(await this._createGridEntry(
             0,
             this.strategy.sell_orders + 1,
             'buy',
             false,
-            currentPriceBig
+            currentPriceBig,
+            currentPosition,
         ));
 
         for (let i=0; i < this.strategy.sell_orders; i++) {
-            entries.push(await this._createGridEntry(
+            let entry = await this._createGridEntry(
                 i+1,
                 this.strategy.sell_orders - i,
                 'sell',
                 i < this.strategy.active_sells,
-                currentPriceBig
-            ));
+                currentPriceBig,
+                currentPosition,
+            );
+            entries.push(entry);
+            currentPosition = currentPosition.minus(entry.order_qty != null ? entry.order_qty : 0);
         }
 
+        currentPosition = this.currentPosition;
         for (let i=0; i < this.strategy.buy_orders; i++) {
-            entries.push(await this._createGridEntry(
+            let entry = await this._createGridEntry(
                 i+1,
                 this.strategy.sell_orders + i + 2,
                 'buy',
                 i < this.strategy.active_buys,
-                currentPriceBig
-            ));
+                currentPriceBig,
+                currentPosition
+            );
+            entries.push(entry);
+            currentPosition = currentPosition.plus(entry.order_qty != null ? entry.order_qty : 0);
         }
         return entries;
     }
