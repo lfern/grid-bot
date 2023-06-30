@@ -128,6 +128,8 @@ class GridManager {
                 side: side,
                 active: false,
                 exchange_order_id: null,
+                order_id: null,
+                matching_order_id: null,
             });
         }
 
@@ -437,7 +439,8 @@ class GridManager {
 
     _printGrid(gridEntriesRaw) {
         gridEntriesRaw.forEach(entry => {
-            console.log(`${entry.buy_order_id}\t${entry.position_before_order}\t${entry.side}\t${entry.active}\t${entry.exchange_order_id}`);
+            console.log(`${entry.buy_order_id}\t${entry.position_before_order}\t${entry.side}\t\
+${entry.active}\t${entry.order_qty}\t${entry.exchange_order_id}\t${entry.order_id}\t${entry.matching_order_id}`);
         })
 
     }
@@ -460,7 +463,8 @@ class GridManager {
         // insert other side entry
         let otherSideIndex = index + signIndex;
         if (otherSideIndex >= 0 && otherSideIndex < gridEntries.length) {
-            this._createNextSideGridEntry(gridEntries[index], gridEntries[otherSideIndex], dstSide, true);
+            let otherSide = gridEntries[index].matching_order_id == null;
+            this._createNextSideGridEntry(gridEntries[index], gridEntries[otherSideIndex], dstSide, otherSide);
         }
         // insert +nth buy if posible
         let indexSideToAdd = index + activeOrders * (-signIndex);
@@ -470,7 +474,7 @@ class GridManager {
             this._createNextSideGridEntry(gridEntries[indexSideFrom], gridEntries[indexSideToAdd], srcSide, false);
         }
         // remove buy at index
-        this._resetGridEntry(executedEntry);
+        this._resetGridEntry(executedEntry, false);
         // remove -nth sell above if posible
         let indexSideToRemove = index + (activeOrders+1) * signIndex;
         if (indexSideToRemove >= 0 && indexSideToRemove < gridEntries.length) {
@@ -480,20 +484,41 @@ class GridManager {
             } else {
                 console.error("Error last sell doesn't have order id");
             }
-            this._resetGridEntry(toRemoveEntry);
+            this._resetGridEntry(toRemoveEntry, true);
         }
     }
 
     _createNextSideGridEntry(srcEntry, dstEntry, dstSide, otherSide) {
         let lastPosition = new BigNumber(srcEntry.position_before_order);
         let lastOrderQty = new BigNumber(srcEntry.order_qty);
-        let nextOrderQty = srcEntry.order_qty;
+        let nextOrderQty;
         if (!otherSide) {
-            if (srcEntry.side == 'buy') {
-                nextOrderQty = dstEntry.buy_order_qty;
+            // if not other side (we are adding and order to complete the active orders)
+            if (dstEntry.matching_order_id != null) {
+                if (dstEntry.order_qty == null) {
+                    console.error("Something wrong. Found emptru order_qty when placing a other side order!!!");
+                }
+
+                // if there were a matching_order_id (and should have a order_qty from a cancelled
+                // order matched from mother order) we recover it
+                nextOrderQty = dstEntry.order_qty;
             } else {
-                nextOrderQty = dstEntry.sell_order_qty;
+                // else new order
+                if (srcEntry.side == 'buy') {
+                    nextOrderQty = dstEntry.buy_order_qty;
+                } else {
+                    nextOrderQty = dstEntry.sell_order_qty;
+                }
             }
+        } else {
+            // new order 
+            if (dstEntry.matching_order_id != null) {
+                console.error("Something wrong. Found matching_order_id when placing a new order!!!");
+            }
+
+            nextOrderQty = srcEntry.order_qty;
+            dstEntry.order_id = null;
+            dstEntry.matching_order_id = srcEntry.order_id;
         }
 
         if (srcEntry.side == 'buy') {
@@ -529,12 +554,21 @@ class GridManager {
         }
     }
 
-    _resetGridEntry(entry) {
+    _resetGridEntry(entry, isCancel) {
         entry.position_before_order = null;
-        entry.order_qty = null;
         entry.side = null;
         entry.active = null;
         entry.exchange_order_id = null;
+        entry.order_id = null;
+        if (!isCancel) {
+            // preserve this
+            entry.order_qty = null;
+            entry.matching_order_id = null;
+        } else {
+            if (entry.matching_order_id == null) {
+                entry.order_qty = null;
+            }
+        }
     }
 
     async _getGridEntries() {
@@ -644,6 +678,7 @@ class GridManager {
      * @param {BaseExchangeOrder} createdOrder 
      */
     async commitOrderExecution(executedOrder, createdOrder) {
+        // TODO: review this process
         let result = this._getGridEntriesAndFindOrder(executedOrder);
         if (result.newOrderData != null) {
             await models.sequelize.transaction(async (transaction) => {
@@ -675,7 +710,7 @@ class GridManager {
                 if (result.subIndexFound == null) {
                     // remove entry from main table
                     if (oldEntry.recovery_grids.length == 0) {
-                        this._resetGridEntry(oldEntry);
+                        this._resetGridEntry(oldEntry, false);
                         await oldEntry.save({transaction});
                     } else {
                         let firstRecovery = oldEntry.recovery_grids[0];
@@ -693,7 +728,7 @@ class GridManager {
         
             });
 
-            await this.instanceAccRepository.createOrder(this.strategy.account.id, createdOrder);
+            await this.instanceAccRepository.createOrder(this.strategy.account.id, createdOrder, null);
             await this.instanceAccRepository.updateOrder(this.strategy.account.id, executedOrder);
             return true;
         } else {

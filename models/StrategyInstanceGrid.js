@@ -77,6 +77,26 @@ module.exports = (sequelize, DataTypes) => {
         exchange_order_id: {
             allowNull: true,
             type: DataTypes.STRING,
+        },
+        order_id: {
+            allowNull: true,
+            type: DataTypes.INTEGER,
+            references: {
+                model: {
+                    tableName: 'strategy_instance_orders'
+                },
+                key: 'id'
+            }
+        },
+        matching_order_id: {
+            allowNull: true,
+            type: DataTypes.INTEGER,
+            references: {
+                model: {
+                    tableName: 'strategy_instance_orders'
+                },
+                key: 'id'
+            }
         }
     }, {
         tableName: 'strategy_instance_grids'

@@ -13,7 +13,7 @@ class InstanceAccountRepository {
      * @param {BaseExchangeOrder} order 
      * @param {*} transaction 
      */
-    async createOrder(instanceId, accountId, order, transaction = null) {
+    async createOrder(instanceId, accountId, order, matching_order_id = null, transaction = null) {
         // check account is still present
         let instance = await models.StrategyInstance.findOne({where:{id: instanceId}, transaction});
 
@@ -22,7 +22,7 @@ class InstanceAccountRepository {
             return;
         }
         
-        await models.StrategyInstanceOrder.create({
+        return await models.StrategyInstanceOrder.create({
             strategy_instance_id: instanceId,
             account_id: accountId,
             exchange_order_id: order.id,
@@ -40,6 +40,7 @@ class InstanceAccountRepository {
             average: order.average,
             filled: order.filled,
             remaining: order.remaining,
+            matching_order_id: matching_order_id
         }, transaction != null ?{transaction}:{})
     }
     
@@ -132,6 +133,9 @@ class InstanceAccountRepository {
                         cost: trade.cost,
                         fee_cost: trade.feeCost ? trade.feeCost : null,
                         fee_coin: trade.feeCurrency ? trade.feeCurrency : null,
+                        taker_or_maker: trade.takerOrMaker,
+                        side: trade.side,
+                        exchange_order_id: trade.order,
                     },
                     transaction
                 });

@@ -63,6 +63,11 @@ class BaseExchangeCcxtTrade extends BaseExchangeTrade {
     }
 
     /** @inheritdoc */
+    get takerOrMaker() {
+        return this.ccxtTrade.takerOrMaker;
+    }
+
+    /** @inheritdoc */
     get timestamp() {
         return this.ccxtTrade.timestamp;
     }

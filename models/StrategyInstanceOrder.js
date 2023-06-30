@@ -101,6 +101,16 @@ module.exports = (sequelize, DataTypes) => {
         remaining: {
             allowNull: true,
             type: DataTypes.DECIMAL(30, 15)
+        },
+        matching_order_id: {
+            allowNull: true,
+            type: DataTypes.INTEGER,
+            references: {
+                model: {
+                    tableName: 'strategy_instance_orders'
+                },
+                key: 'id'
+            }
         }
     }, {
         tableName: 'strategy_instance_orders'

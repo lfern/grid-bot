@@ -83,6 +83,15 @@ class BaseExchangeTrade {
      * Timestamp
      * @returns {number}
      */
+    get takerOrMaker() {
+        throw new Error("NOT IMPLEMENTED");
+    }
+
+
+    /**
+     * Timestamp
+     * @returns {number}
+     */
     get timestamp() {
         throw new Error("NOT IMPLEMENTED");
     }

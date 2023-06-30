@@ -10,7 +10,7 @@ exports.tradeWorker = async (job, done) => {
     console.log(`TradeWorker: received trade ${dataTrade.id} ${dataTrade.side} ${dataTrade.symbol} ${dataTrade.order}`);
     try {
         let instanceAccountRepository = new InstanceAccountRepository();
-        instanceAccountRepository.createTrade(data.account, dataTrade);
+        await instanceAccountRepository.createTrade(data.account, dataTrade);
         // TODO: check if all trades has completed the order ?
     } catch (ex) {
         console.error("TradeWorker:", ex);

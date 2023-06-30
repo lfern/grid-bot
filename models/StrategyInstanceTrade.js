@@ -77,6 +77,18 @@ module.exports = (sequelize, DataTypes) => {
         fee_coin: {
             allowNull: true,
             type: DataTypes.STRING
+        },
+        taker_or_maker: {
+            allowNull: true,
+            type: DataTypes.STRING,
+        },
+        side: {
+            allowNull: true,
+            type: DataTypes.ENUM('buy', 'sell')
+        },
+        exchange_order_id: {
+            allowNull: true,
+            type: DataTypes.STRING
         }
     }, {
         tableName: 'strategy_instance_trades'

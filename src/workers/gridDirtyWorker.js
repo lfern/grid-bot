@@ -7,7 +7,8 @@ const { exchangeInstanceWithMarketsFromAccount } = require('../services/Exchange
 const GridDirtyEventService = require('../services/GridDirtyEventService');
 const LockService = require('../services/LockService');
 const GridNoFundsEventService = require('../services/GridNoFundsEventService');
-const { StrategyInstanceEventRepository, LEVEL_ERROR, LEVEL_CRITICAL } = require('../../repository/StrategyInstanceEventRepository');
+const { StrategyInstanceEventRepository, LEVEL_ERROR, LEVEL_CRITICAL, LEVEL_WARN } = require('../../repository/StrategyInstanceEventRepository');
+const notificationEventService = require('../services/NotificationEventService');
 
 const recoveryRepository = new StrategyInstanceRecoveryGridRepository();
 const instanceRepository = new InstanceRepository();
@@ -37,7 +38,14 @@ exports.gridDirtyWorker = async (job, done) => {
 
     let grid = job.data;
     console.log("GridDirtyWorker: checking grid", grid);
- 
+
+    if (1 == 1) {
+        console.log("RECOVER IS DISABLED FOR NOW");
+        notificationEventService.send("Not implemented", LEVEL_WARN, "RECOVER GRID PROCESS IS DISABLED FOR NOW!!");
+        done(null, { message: "grid dirty worker event executed" });
+        return;
+    }
+
     let lock = null;
     let reentry = true;
     try {

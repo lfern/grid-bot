@@ -84,16 +84,19 @@ exports.orderSenderWorker = async (job, done) => {
         console.log(`OrderSenderWorker: creating order in database: ${order.id} ${order.symbol} ${order.side} ${order.status}`);
         // update order id in grid
         await models.sequelize.transaction(async (transaction)=> {
-            gridInstance.active = true;
-            gridInstance.exchange_order_id = order.id;
-            await gridInstance.save({transaction});
-        
-            await instanceAccRepository.createOrder(
+            let newOrder = await instanceAccRepository.createOrder(
                 instance.id,
                 strategy.account.id,
                 order,
+                gridInstance.matching_order_id,
                 transaction
             );
+
+            gridInstance.active = true;
+            gridInstance.exchange_order_id = order.id;
+            gridInstance.order_id = newOrder.id;
+            await gridInstance.save({transaction});
+        
         });
         console.log(`OrderSenderWorker: created order in database: ${order.id} ${order.symbol} ${order.side} ${order.status}`);
 
