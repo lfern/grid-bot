@@ -13,6 +13,7 @@ const {StrategyInstanceEventRepository, LEVEL_WARN, LEVEL_CRITICAL} = require('.
  * @property {number} price
  * @property {number} amount
  * @property {string} side
+ * @property {string} motherOrderId
  */
 
 /** 
@@ -278,7 +279,7 @@ class GridManager {
                     this.instance,
                     'GridDirty',
                     LEVEL_WARN,
-                    `Grid dirty, we handled an order that is not the lowest buy or the highest sell!!!. order Info:\n` +
+                    `Grid dirty, we handled an order that is not the highest buy or the lowest sell!!!. order Info:\n` +
                     `${order.id} ${order.side} ${order.symbol}`
                 );
             } else {
@@ -601,12 +602,14 @@ ${entry.active}\t${entry.order_qty}\t${entry.exchange_order_id}\t${entry.order_i
         // search for order
         let indexFound = null;
         let sideFound = null;
+        let motherOrderId = null;
         let subIndexFound = null;
         for (let i=0;i<gridEntries.length;i++) {
             let gridEntry = gridEntries[i];
             if (gridEntry.exchange_order_id == order.id) {
                 indexFound = i;
                 sideFound = gridEntry.side;
+                motherOrderId = gridEntry.matching_order_id == null ? gridEntry.order_id : null;
                 break;
             } else {
                 for (let j=0;j<gridEntry.recovery_grids.length;j++) {
@@ -615,6 +618,7 @@ ${entry.active}\t${entry.order_qty}\t${entry.exchange_order_id}\t${entry.order_i
                         indexFound = i;
                         subIndexFound = j;
                         sideFound = recoverGrid.side;
+                        motherOrderId = recoverGrid.matching_order_id == null ? gridEntry.order_id : null;
                         break;
                     }
                 }
@@ -631,6 +635,7 @@ ${entry.active}\t${entry.order_qty}\t${entry.exchange_order_id}\t${entry.order_i
                         amount: previousGridEntry.sell_order_qty,
                         side: 'sell',
                         index: indexFound - 1,
+                        motherOrderId: motherOrderId
                     };
                 }
             } else {
@@ -648,6 +653,7 @@ ${entry.active}\t${entry.order_qty}\t${entry.exchange_order_id}\t${entry.order_i
                         ),
                         side: 'buy',
                         index: indexFound + 1,
+                        motherOrderId: motherOrderId
                     };
                 }
             }
@@ -682,6 +688,9 @@ ${entry.active}\t${entry.order_qty}\t${entry.exchange_order_id}\t${entry.order_i
         let result = this._getGridEntriesAndFindOrder(executedOrder);
         if (result.newOrderData != null) {
             await models.sequelize.transaction(async (transaction) => {
+                await this.instanceAccRepository.updateOrder(this.strategy.account.id, executedOrder);
+                let newDbOrder = await this.instanceAccRepository.createOrder(this.strategy.account.id, createdOrder,  result.newOrderData.motherOrderId);
+    
                 let newEntry = gridEntries[result.newOrderData.index];
                 let oldEntry = gridEntries[result.indexFound];
                 let lastPosition = new BigNumber(oldEntry.position_before_order);
@@ -696,6 +705,8 @@ ${entry.active}\t${entry.order_qty}\t${entry.exchange_order_id}\t${entry.order_i
                     newEntry.side = result.newOrderData.side;
                     newEntry.active = true;
                     newEntry.exchange_order_id = createdOrder.id;
+                    newEntry.order_id = newDbOrder.id;
+                    newEntry.matching_order_id = result.newOrderData.motherOrderId;
                     await newEntry.save({transaction});
                 } else {
                     await models.StrategyInstanceRecoveryGrid.create({
@@ -703,6 +714,8 @@ ${entry.active}\t${entry.order_qty}\t${entry.exchange_order_id}\t${entry.order_i
                         order_qty: result.newOrderData.amount,
                         side: result.newOrderData.side,
                         exchange_order_id: createdOrder.id,
+                        order_id: newDbOrder.id,
+                        matching_order_id: result.newOrderData.motherOrderId,
                     }, {transaction});
                 }
 
@@ -718,6 +731,8 @@ ${entry.active}\t${entry.order_qty}\t${entry.exchange_order_id}\t${entry.order_i
                         oldEntry.side = firstRecovery.side;
                         oldEntry.active = true;
                         oldEntry.exchange_order_id = firstRecovery.exchange_order_id;
+                        oldEntry.order_id = firstRecovery.order_id;
+                        oldEntry.matching_order_id = firstRecovery.matching_order_id;
                         await oldEntry.save({transaction});
                         await firstRecovery.destroy({transaction});
                     }
@@ -728,8 +743,6 @@ ${entry.active}\t${entry.order_qty}\t${entry.exchange_order_id}\t${entry.order_i
         
             });
 
-            await this.instanceAccRepository.createOrder(this.strategy.account.id, createdOrder, null);
-            await this.instanceAccRepository.updateOrder(this.strategy.account.id, executedOrder);
             return true;
         } else {
             return false;

@@ -39,12 +39,14 @@ exports.gridDirtyWorker = async (job, done) => {
     let grid = job.data;
     console.log("GridDirtyWorker: checking grid", grid);
 
+    /*
     if (1 == 1) {
         console.log("RECOVER IS DISABLED FOR NOW");
         notificationEventService.send("Not implemented", LEVEL_WARN, "RECOVER GRID PROCESS IS DISABLED FOR NOW!!");
         done(null, { message: "grid dirty worker event executed" });
         return;
     }
+    */
 
     let lock = null;
     let reentry = true;
