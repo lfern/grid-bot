@@ -8,6 +8,7 @@ const { EventService } = require('./EventService');
  * @typedef {Object} TradeDataEvent
  * @property {string} account
  * @property {BaseExchangeTrade} trade
+ * @property {boolean|undefined} delayed
  */
 
 class TradeEventService extends EventService {
@@ -15,11 +16,12 @@ class TradeEventService extends EventService {
         super("Trade");
     }
 
-    send(account, trade) {
+    send(account, trade, delayed = false) {
         /** @type {TradeDataEvent} */
         let data = {
             account,
-            trade
+            trade,
+            delayed
         };
 
         this._send(data);

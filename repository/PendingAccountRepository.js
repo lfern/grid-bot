@@ -130,6 +130,26 @@ class PendingAccountRepository {
         return await models.AccountPendingOrder.findAll(options);
     }
 
+    async getOldestTrades(limit = 10, olderThanSeconds = 5,forUpdate = false, transaction = null) {
+        const options = {
+            transaction,
+            order: [
+                ['updatedAt', 'ASC'],
+            ],
+            limit: limit
+        };
+        
+        if (olderThanSeconds > 0) {
+            options.where = {updatedAt:  {[models.Sequelize.Op.lte]: new Date(Date.now() - (olderThanSeconds*1000))}};
+        }
+
+        if (forUpdate) {
+            options.lock = transaction.LOCK.UPDATE;
+        }
+
+        return await models.AccountPendingTrade.findAll(options);
+    }
+
     async removeNotFoundOrdersOlderThan(seconds, transaction = null) {
         const options = {
             where: {
@@ -142,12 +162,34 @@ class PendingAccountRepository {
         return await models.AccountPendingOrder.destroy(options);
     }
 
+    async removeNotFoundTradesOlderThan(seconds, transaction = null) {
+        const options = {
+            where: {
+                // delayed: false,
+                createdAt: {[models.Sequelize.Op.lte]: new Date(Date.now() - (seconds*1000))}
+            },
+            transaction,
+        };
+
+        return await models.AccountPendingTrade.destroy(options);
+    }
+
     async removeOrder(accountId, order) {
         return await models.AccountPendingOrder.destroy({
             where: {
                 account_id: accountId,
                 symbol: order.symbol,
                 order_id: order.id    
+            },
+        })
+    }
+
+    async removeTrade(accountId, trade) {
+        return await models.AccountPendingTrade.destroy({
+            where: {
+                account_id: accountId,
+                symbol: trade.symbol,
+                trade_id: trade.id    
             },
         })
     }

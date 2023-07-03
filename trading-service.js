@@ -21,6 +21,7 @@ const { checkDepositWorker } = require("./src/workers/deposit-worker");
 const { gridNoFundsWorker } = require("./src/workers/gridnofunds-worker");
 const { gridDirtyWorker } = require("./src/workers/gridDirtyWorker");
 const { tradingServiceBootstrap } = require("./src/bootstrap");
+const { recoverTradesWorkerPromise } = require("./src/workers/recover-trades-worker");
 require('events').defaultMaxListeners = 15;
 
 
@@ -135,6 +136,7 @@ tradingServiceBootstrap().then(res=> console.log("bootstrap executed")).catch(ex
 const promises = [
     startStopProcessPromise(),
     recoverOrdersWorkerPromise(),
+    recoverTradesWorkerPromise(),
     broadcastWorkerPromise(),
 ];
 
