@@ -7,9 +7,9 @@ const { BaseExchangeCcxtTrade } = require("../crypto/exchanges/ccxt/BaseExchange
 exports.tradeWorker = async (job, done) => {
     /** @type {TradeDataEvent} */
     let data = job.data;
-    let delayed = job.delayed
+    let delayed = data.delayed
     let dataTrade = BaseExchangeCcxtTrade.fromJson(data.trade);
-    console.log(`TradeWorker: received trade ${dataTrade.id} ${dataTrade.side} ${dataTrade.symbol} ${dataTrade.order} ${delayed?'delayed':''}`);
+    console.log(`TradeWorker: received trade ${dataTrade.id} ${dataTrade.side} ${dataTrade.symbol} ${dataTrade.order} ${delayed?'delayed':'not-delayed'}`);
     try {
         let instanceAccountRepository = new InstanceAccountRepository();
         let pendingAccountRepository = new PendingAccountRepository();
