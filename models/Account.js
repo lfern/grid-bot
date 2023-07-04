@@ -91,6 +91,10 @@ module.exports = (sequelize, DataTypes) => {
             allowNull: false,
             type: DataTypes.BOOLEAN,
             defaultValue: true
+        },
+        holder: {
+            allowNull: true,
+            type: DataTypes.STRING,
         }
     }, {
         tableName: 'accounts'
