@@ -17,9 +17,9 @@ exports.tradeWorker = async (job, done) => {
 
         if (delayed === true) {
             let fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 3600); // five minutes ago
-            console.log(`RecoverTradesWorker: ${fiveMinutesAgo.toISOString()} ${dataTrade.datetime}`);
+            console.log(`TradeWorker: ${fiveMinutesAgo.toISOString()} ${dataTrade.datetime}`);
             if (new Date(dataTrade.timestamp) < fiveMinutesAgo) {
-                console.log(`RecoverTradesWorker: account ${data.account} ${dataTrade.id} ${dataTrade.datetime} removed after 5 minutes`);
+                console.log(`TradeWorker: account ${data.account} ${dataTrade.id} ${dataTrade.datetime} removed after 5 minutes`);
                 await pendingAccountRepository.removeTrade(data.account, dataTrade);
             }             
         }

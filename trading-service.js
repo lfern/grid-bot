@@ -13,6 +13,7 @@ const { broadcastWorkerPromise } = require("./src/workers/broadcast-worker");
 const NotificationEventService = require('./src/services/NotificationEventService');
 const OrderSenderEventService = require('./src/services/OrderSenderEventService');
 const OrderEventService = require("./src/services/OrderEventService");
+const TradeEventService = require("./src/services/TradeEventService");
 const GridNoFundsEventService = require("./src/services/GridNoFundsEventService");
 const GridDirtyEventService = require("./src/services/GridDirtyEventService");
 const CheckAccountDepositEventService = require("./src/services/CheckAccountDepositEventService");
@@ -106,6 +107,7 @@ const myGridDirtyQueue = new Queue("myGridDirty", opts);
 const myCheckAccountDepositQueue = new Queue("myCheckAccountDeposit", opts);
 
 OrderEventService.init(myOrdersQueue);
+TradeEventService.init(myTradesQueue);
 OrderSenderEventService.init(myOrderSenderQueue);
 NotificationEventService.init(myNotificationQueue);
 GridNoFundsEventService.init(myGridNoFundsQueue);
