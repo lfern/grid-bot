@@ -9,7 +9,7 @@ exports.tradeWorker = async (job, done) => {
     let data = job.data;
     let delayed = job.delayed
     let dataTrade = BaseExchangeCcxtTrade.fromJson(data.trade);
-    console.log(`TradeWorker: received trade ${dataTrade.id} ${dataTrade.side} ${dataTrade.symbol} ${dataTrade.order}`);
+    console.log(`TradeWorker: received trade ${dataTrade.id} ${dataTrade.side} ${dataTrade.symbol} ${dataTrade.order} ${delayed?'delayed':''}`);
     try {
         let instanceAccountRepository = new InstanceAccountRepository();
         let pendingAccountRepository = new PendingAccountRepository();
@@ -17,6 +17,7 @@ exports.tradeWorker = async (job, done) => {
 
         if (delayed === true) {
             let fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 3600); // five minutes ago
+            console.log(`RecoverTradesWorker: ${fiveMinutesAgo.toISOString()} ${dataTrade.datetime}`);
             if (new Date(dataTrade.timestamp) < fiveMinutesAgo) {
                 console.log(`RecoverTradesWorker: account ${data.account} ${dataTrade.id} ${dataTrade.datetime} removed after 5 minutes`);
                 await pendingAccountRepository.removeTrade(data.account, dataTrade);
