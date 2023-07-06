@@ -54,10 +54,6 @@ class Bitfinex extends BaseExchangeCcxt {
 
     /** @inheritdoc */
     currencyNotFoundForMarket(symbol, side) {
-        if (this.params.exchangeType == 'future') {
-            return this.params.paper ? "TESTUSDT" : "USDT";
-        }
-
         let market = this.ccxtExchange.market(symbol);
         return side == 'buy' ? market.quote : market.base;
     }
