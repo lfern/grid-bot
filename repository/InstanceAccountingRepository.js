@@ -115,7 +115,7 @@ class InstanceAccountRepository {
                 await pendingAccountRepository.addTrade(accountId, trade, transaction);
             } else {
                 // order exists so create trade
-                await models.StrategyInstanceTrade.findOrCreate({
+                const [dbTrade, created] = await models.StrategyInstanceTrade.findOrCreate({
                     where: {
                         strategy_instance_order_id: dbOrder.id,
                         symbol: trade.symbol,
@@ -139,6 +139,37 @@ class InstanceAccountRepository {
                     },
                     transaction
                 });
+
+                if (created) {
+                    await models.StrategyInstanceOrder.increment('trades_filled',{
+                        by: trade.amount,
+                        where: {
+                            id: dbOrder.id,
+                        },
+                        transaction
+                    });
+
+                    await models.StrategyInstanceOrder.update({
+                        'trades_ok': true
+                    },{
+                        where: {
+                            id: dbOrder.id,
+                            amount: {
+                                [models.Sequelize.Op.eq]: models.sequelize.col('trades_filled')
+                            }
+                        },
+                        transaction
+                    });
+
+                    await models.StrategyInstanceGrid.increment('filled', {
+                        by: trade.amount,
+                        where: {
+                            strategy_instance_id: dbOrder.strategy_instance_id,
+                            order_id: dbOrder.id,
+                        },
+                        transaction
+                    })
+                }
             }
         });
     }

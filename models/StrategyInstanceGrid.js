@@ -97,7 +97,11 @@ module.exports = (sequelize, DataTypes) => {
                 },
                 key: 'id'
             }
-        }
+        },
+        filled: {
+            allowNull: true,
+            type: DataTypes.DECIMAL(30, 15)
+        },
     }, {
         tableName: 'strategy_instance_grids'
     });

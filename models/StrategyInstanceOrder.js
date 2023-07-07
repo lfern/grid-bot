@@ -111,7 +111,17 @@ module.exports = (sequelize, DataTypes) => {
                 },
                 key: 'id'
             }
-        }
+        },
+        trades_ok: {
+            allowNull: false,
+            type: DataTypes.BOOLEAN,
+            defaultValue: false
+        },
+        trades_filled: {
+            allowNull: false,
+            type: DataTypes.DECIMAL(30, 15),
+            defaultValue: 0
+        },
     }, {
         tableName: 'strategy_instance_orders'
     });
