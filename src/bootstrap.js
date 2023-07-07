@@ -12,7 +12,7 @@ const tradingServiceBootstrap = async function () {
         let pendingOrderGrids = await instanceRepository.getPendingSendOrdersRuningInstances();
         for (let i=0;i<pendingOrderGrids.length;i++) {
             let instance = pendingOrderGrids[i];
-            console.log(`Bootstrap: Sending order sender event for grid ${instnace.id}`);
+            console.log(`Bootstrap: Sending order sender event for grid ${instance.id}`);
             OrderSenderEventService.send(instance.id);
         }    
     } catch (ex) {
