@@ -564,6 +564,7 @@ ${entry.active}\t${entry.order_qty}\t${entry.exchange_order_id}\t${entry.order_i
         if (!isCancel) {
             // preserve this
             entry.order_qty = null;
+            entry.filled = null;
             entry.matching_order_id = null;
         } else {
             if (entry.matching_order_id == null) {
@@ -704,6 +705,7 @@ ${entry.active}\t${entry.order_qty}\t${entry.exchange_order_id}\t${entry.order_i
                     newEntry.order_qty = result.newOrderData.amount;
                     newEntry.side = result.newOrderData.side;
                     newEntry.active = true;
+                    newEntry.filled = null;
                     newEntry.exchange_order_id = createdOrder.id;
                     newEntry.order_id = newDbOrder.id;
                     newEntry.matching_order_id = result.newOrderData.motherOrderId;
@@ -714,6 +716,7 @@ ${entry.active}\t${entry.order_qty}\t${entry.exchange_order_id}\t${entry.order_i
                         order_qty: result.newOrderData.amount,
                         side: result.newOrderData.side,
                         exchange_order_id: createdOrder.id,
+                        filled: null,
                         order_id: newDbOrder.id,
                         matching_order_id: result.newOrderData.motherOrderId,
                     }, {transaction});
@@ -730,6 +733,7 @@ ${entry.active}\t${entry.order_qty}\t${entry.exchange_order_id}\t${entry.order_i
                         oldEntry.order_qty = firstRecovery.order_qty;
                         oldEntry.side = firstRecovery.side;
                         oldEntry.active = true;
+                        oldEntry.filled = firstRecovery.filled;
                         oldEntry.exchange_order_id = firstRecovery.exchange_order_id;
                         oldEntry.order_id = firstRecovery.order_id;
                         oldEntry.matching_order_id = firstRecovery.matching_order_id;
