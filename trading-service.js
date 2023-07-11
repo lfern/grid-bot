@@ -17,13 +17,15 @@ const TradeEventService = require("./src/services/TradeEventService");
 const GridNoFundsEventService = require("./src/services/GridNoFundsEventService");
 const GridDirtyEventService = require("./src/services/GridDirtyEventService");
 const CheckAccountDepositEventService = require("./src/services/CheckAccountDepositEventService");
+const StopGridEventService = require('./src/services/StopGridEventService');
 const LockService = require("./src/services/LockService");
 const { checkDepositWorker } = require("./src/workers/deposit-worker");
 const { gridNoFundsWorker } = require("./src/workers/gridnofunds-worker");
 const { gridDirtyWorker } = require("./src/workers/gridDirtyWorker");
 const { tradingServiceBootstrap } = require("./src/bootstrap");
 const { recoverTradesWorkerPromise } = require("./src/workers/recover-trades-worker");
-require('events').defaultMaxListeners = 15;
+const { stopGridWorker } = require("./src/workers/stop-grid-worker");
+require('events').defaultMaxListeners = 20;
 
 
 /** @typedef {import('./src/services/TradeEventService').TradeDataEvent} TradeDataEvent */
@@ -105,6 +107,7 @@ const myNotificationQueue = new Queue("myNotification", opts);
 const myGridNoFundsQueue = new Queue("myGridNoFunds", opts);
 const myGridDirtyQueue = new Queue("myGridDirty", opts);
 const myCheckAccountDepositQueue = new Queue("myCheckAccountDeposit", opts);
+const myStopGridQueue = new Queue("myStopGridQueue", opts);
 
 OrderEventService.init(myOrdersQueue);
 TradeEventService.init(myTradesQueue);
@@ -113,25 +116,22 @@ NotificationEventService.init(myNotificationQueue);
 GridNoFundsEventService.init(myGridNoFundsQueue);
 GridDirtyEventService.init(myGridDirtyQueue);
 CheckAccountDepositEventService.init(myCheckAccountDepositQueue);
+StopGridEventService.init(myStopGridQueue);
+
 
 LockService.init(redlock);
 
-// wait for trades from redis server
-myTradesQueue.process(tradeWorker);
-
 // wait for orders from redis server
 myOrdersQueue.process(orderWorker);
-
+// wait for trades from redis server
+myTradesQueue.process(tradeWorker);
+myOrderSenderQueue.process(orderSenderWorker);
 // wait for balance from redis server
 myBalanceQueue.process(balanceWorker);
-
-myOrderSenderQueue.process(orderSenderWorker);
-
 myCheckAccountDepositQueue.process(checkDepositWorker);
-
 myGridNoFundsQueue.process(gridNoFundsWorker);
-
 myGridDirtyQueue.process(gridDirtyWorker);
+myStopGridQueue.process(stopGridWorker);
 
 tradingServiceBootstrap().then(res=> console.log("bootstrap executed")).catch(ex => console.error("Error in bootstrap", ex));
 

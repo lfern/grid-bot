@@ -1,3 +1,4 @@
+const { OrderNotFound } = require("ccxt");
 const {BaseExchangeCcxt} = require("./BaseExchangeCcxt");
 const { BaseExchangeCcxtOrder } = require("./BaseExchangeCcxtOrder");
 const {BaseExchangeCcxtPosition} = require("./BaseExchangeCcxtPosition");
@@ -78,6 +79,22 @@ class Bitfinex extends BaseExchangeCcxt {
     /** @inheritdoc */
     async fetchBalanceDepositWallet() {
         return await this.ccxtExchange.fetchBalance({type: 'exchange'});
+    }
+
+    /** @inheritdoc */
+    async fetchOrder(id, symbol = undefined) {
+        try {
+            return new BaseExchangeCcxtOrder(
+                await this.ccxtExchange.fetchClosedOrder(id, symbol)
+            );
+        } catch (ex) {
+            if (ex instanceof OrderNotFound) {
+                return new BaseExchangeCcxtOrder(
+                    await this.ccxtExchange.fetchOpenOrders(id, Symbol)
+                );
+            }
+            throw ex;
+        }
     }
     
     /** @inheritdoc */

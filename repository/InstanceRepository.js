@@ -129,13 +129,22 @@ class InstanceRepository {
         });
     }
 
-    async stopGrid(instanceId) {
-        await models.StrategyInstance.update({
+    async stopGrid(instanceId, setSyncimg = false) {
+        let data = {
             running: false,
             stopped_at: models.sequelize.fn('NOW'),
-        }, {
-            where: {id: instanceId}
-        })
+        };
+
+        if (setSyncimg) {
+            data.is_syncing = true;
+            data.syncing_at = models.sequelize.fn('NOW');
+        }
+
+        let ret = await models.StrategyInstance.update(data, {
+            where: {id: instanceId, running: true}
+        });
+
+        return ret[0] > 0;
     }
 
     async gridClean(instanceId) {
@@ -154,6 +163,23 @@ class InstanceRepository {
             },
             include: [models.StrategyInstance.StrategyInstanceGrid]
         });
+    }
+
+    async gridSynced(instanceId) {
+        await models.StrategyInstance.update({
+            is_syncing: false,
+        }, {
+            where: {id: instanceId}
+        })
+    }
+
+    async requestStop(instanceId) {
+        await models.StrategyInstance.update({
+            stop_requested_at: models.sequelize.fn('NOW'),
+        }, {
+            id: instanceId,
+            stop_requested_at: { [models.Sequelize.Op.is]: null }
+        })
     }
 }
 

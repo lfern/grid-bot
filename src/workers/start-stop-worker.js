@@ -1,5 +1,5 @@
 const { cancelablePromise } = require("../crypto/exchanges/utils/procutils");
-const { stopGrids, startGrids } = require("../grid/start-stop-process");
+const { stopGrids, startGrids, checkSyncingGrids } = require("../grid/start-stop-process");
 const {sleep} = require('../crypto/exchanges/utils/timeutils');
 /** @typedef {import('bull').Queue} Queue} */
 
@@ -18,6 +18,8 @@ exports.startStopProcessPromise = function() {
         try {
             while (!cancelled) {
                 await stopGrids(() => cancelled)
+
+                await checkSyncingGrids(() => cancelled)
 
                 await startGrids(() => cancelled);
 

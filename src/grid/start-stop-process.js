@@ -4,6 +4,8 @@ const { exchangeInstanceWithMarketsFromAccount } = require('../services/Exchange
 const { InstanceRepository } = require('../../repository/InstanceRepository');
 const { StrategyInstanceEventRepository, LEVEL_INFO, LEVEL_CRITICAL } = require('../../repository/StrategyInstanceEventRepository');
 const OrderSenderEventService = require('../services/OrderSenderEventService');
+const StopGridEventService = require('../services/StopGridEventService');
+
 /** @typedef {import('bull').Queue} Queue} */
 
 /**
@@ -110,6 +112,28 @@ exports.startGrids = async function(isCancelled) {
     }
 }
 
+exports.checkSyncingGrids = async function(isCancelled) {
+    if (isCancelled()) return;
+
+    try {
+        const instances = await models.StrategyInstance.findAll({
+            where: {
+                is_syncing: true,
+            },
+        });
+
+        for (let i=0; i<instances.length && !isCancelled(); i++) {
+            let instance = instances[i];
+
+            console.log(`StopGridWorker: send stop grud (still syncing) for grid ${instance.id}`);
+            StopGridEventService.send(instance.id);
+
+        }
+    } catch (ex) {
+        console.error("StopGrids:", ex);
+    }
+}
+
 exports.stopGrids = async function(isCancelled) {
     if (isCancelled()) return;
 
@@ -140,13 +164,10 @@ exports.stopGrids = async function(isCancelled) {
             let strategy = instance.strategy;
             let account = strategy.account;
 
-            await models.StrategyInstance.update({
-                running: false,
-                stopped_at: models.Sequelize.fn('NOW')
-            }, {
-                where: {id: instance.id}
-            });
-
+            console.log(`StopGridWorker: send stop grid event for grid ${instance.id}`);
+            StopGridEventService.send(instance.id);
+/*
+            await instanceRepository.stopGrid(instance.id);
             // create exchange
             const exchange = await exchangeInstanceWithMarketsFromAccount(account);
             try {
@@ -160,9 +181,11 @@ exports.stopGrids = async function(isCancelled) {
                 );
 
                 // TODO: cancel orders?
+
             } catch (ex) {
                 console.error("StopGrids:", ex);
             }
+*/
         }
     } catch (ex) {
         console.error("StopGrids:", ex);

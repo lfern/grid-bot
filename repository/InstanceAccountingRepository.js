@@ -45,11 +45,27 @@ class InstanceAccountRepository {
     }
     
     async getOrder(accountId, order) {
-        await models.StrategyInstanceOrder.findOne({
+        return await this.getOrderSymbol(
+                accountId,
+                order.symbol,
+                order.id
+        );
+    }
+
+    async getOrderSymbol(accountId, symbol, exchange_order_id) {
+        return await models.StrategyInstanceOrder.findOne({
             where: {
                 account_id: accountId,
-                symbol: order.symbol,
-                exchange_order_id: order.id
+                symbol: symbol,
+                exchange_order_id: exchange_order_id
+            },
+        });
+    }
+
+    async getOrderById(id) {
+        return await models.StrategyInstanceOrder.findOne({
+            where: {
+                id: id,
             },
         });
     }
@@ -154,9 +170,16 @@ class InstanceAccountRepository {
                     },{
                         where: {
                             id: dbOrder.id,
-                            amount: {
-                                [models.Sequelize.Op.eq]: models.sequelize.col('trades_filled')
-                            }
+                            [models.Sequelize.Op.or] : [{
+                                amount: {
+                                    [models.Sequelize.Op.eq]: models.sequelize.col('trades_filled')
+                                }
+                            }, {
+                                status: {[models.Sequelize.Op.notIn]: ['open', 'closed']},
+                                filled: {
+                                    [models.Sequelize.Op.eq]: models.sequelize.col('trades_filled')
+                                }
+                            }]
                         },
                         transaction
                     });
@@ -173,6 +196,16 @@ class InstanceAccountRepository {
             }
         });
     }
+
+    async getNextOrderNotFilled(instanceId) {
+        return await models.StrategyInstanceOrder.findOne({
+            where: {
+                strategy_instance_id: instanceId,
+                trades_ok: false
+            }
+        });
+    }
+
 }
 
 module.exports = {InstanceAccountRepository}

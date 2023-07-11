@@ -175,21 +175,37 @@ class PendingAccountRepository {
     }
 
     async removeOrder(accountId, order) {
+        return await this.removeOrderSymbol(
+            accountId,
+            order.symbol,
+            order.id    
+        );
+    }
+
+    async removeTrade(accountId, trade) {
+        return await this.removeTradeSymbol(
+                accountId,
+                trade.symbol,
+                trade.id    
+        );
+    }
+
+    async removeOrderSymbol(accountId, symbol, exchange_order_id) {
         return await models.AccountPendingOrder.destroy({
             where: {
                 account_id: accountId,
-                symbol: order.symbol,
-                order_id: order.id    
+                symbol: symbol,
+                order_id: exchange_order_id    
             },
         })
     }
 
-    async removeTrade(accountId, trade) {
+    async removeTradeSymbol(accountId, symbol, exchange_trade_id) {
         return await models.AccountPendingTrade.destroy({
             where: {
                 account_id: accountId,
-                symbol: trade.symbol,
-                trade_id: trade.id    
+                symbol: symbol,
+                trade_id: exchange_trade_id    
             },
         })
     }

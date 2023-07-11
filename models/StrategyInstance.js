@@ -68,7 +68,16 @@ module.exports = (sequelize, DataTypes) => {
         nofunds_currency: {
             allowNull: true,
             type: DataTypes.STRING,
-        }
+        },
+        is_syncing: {
+            allowNull: false,
+            type: DataTypes.BOOLEAN,
+            defaultValue: false,
+        }, 
+        syncing_at: {
+            allowNull: true,
+            type: DataTypes.DATE,
+        }       
     }, {
         tableName: 'strategy_instances'
     });

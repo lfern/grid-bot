@@ -9,10 +9,41 @@ const LockService = require('../services/LockService');
 const GridNoFundsEventService = require('../services/GridNoFundsEventService');
 const { StrategyInstanceEventRepository, LEVEL_ERROR, LEVEL_CRITICAL, LEVEL_WARN } = require('../../repository/StrategyInstanceEventRepository');
 const notificationEventService = require('../services/NotificationEventService');
-
+const StopGridEventService = require('../services/StopGridEventService');
 const recoveryRepository = new StrategyInstanceRecoveryGridRepository();
 const instanceRepository = new InstanceRepository();
 const eventRepository = new StrategyInstanceEventRepository();
+
+/**
+ * Cancel all pending orders in exchange and sync all orders
+ * 
+ * @param {*} job 
+ * @param {*} done 
+ */
+exports.gridDirtyWorker = async (job, done) => {
+    let grid = job.data;
+    console.log("GridDirtyWorker: checking grid", grid);
+
+    let lock = null;
+    try {
+        // lock grid
+        lock = await LockService.acquire(['grid-instance-' + grid], 60000);
+        console.log(`GridDirtyWorker: lock acquired for grid ${grid}`);
+        console.log(`GridDirtyWorker: request stop and send event for grid ${grid}`);
+        await instanceRepository.requestStop(grid);
+        StopGridEventService.send(grid);
+    } catch (ex) {
+        console.error(`GridDirtyWorker: error stopping grid ${grid}:`, ex);
+        notificationEventService.send("GridDirtyWorksr", LEVEL_CRITICAL, `Error stopping grid ${grid} ${ex.message}`);
+    } finally {
+        if (lock != null){try {await lock.unlock();} catch(ex){console.error("GridDirtyWorker: Error trying to unlock " ,ex);}}
+        console.log(`GridDirtyWorker lock released for grid ${grid}`);
+        if (reentry) {
+            GridDirtyEventService.send(grid);
+        }
+    }
+    done(null, { message: "grid dirty worker event executed" });
+}
 
 /**
  * Three phases: initializing, downloading, fixing, exchange, checking
@@ -31,7 +62,7 @@ const eventRepository = new StrategyInstanceEventRepository();
  * @param {*} done 
  * @returns 
  */
-exports.gridDirtyWorker = async (job, done) => {
+exports.gridDirtyWorkerOld = async (job, done) => {
 
     // then get orders from oldest open order timestamp in our database (creation_datetime)
     // and fill temporal table (one REST request at a time) How to know there are no more orders
@@ -39,14 +70,12 @@ exports.gridDirtyWorker = async (job, done) => {
     let grid = job.data;
     console.log("GridDirtyWorker: checking grid", grid);
 
-    /*
     if (1 == 1) {
         console.log("RECOVER IS DISABLED FOR NOW");
         notificationEventService.send("Not implemented", LEVEL_WARN, "RECOVER GRID PROCESS IS DISABLED FOR NOW!!");
         done(null, { message: "grid dirty worker event executed" });
         return;
     }
-    */
 
     let lock = null;
     let reentry = true;
@@ -82,7 +111,7 @@ exports.gridDirtyWorker = async (job, done) => {
         console.error(`GridDirtyWorker: error handling grid dirty for grid ${grid}:`, ex);
         reentry = false;
     } finally {
-        if (lock != null){try {await lock.unlock();} catch(ex){console.error("Error trying to unlock " ,ex);}}
+        if (lock != null){try {await lock.unlock();} catch(ex){console.error("GridDirtyWorker: Error trying to unlock " ,ex);}}
         console.log(`GridDirtyWorker lock released for grid ${grid}`);
         if (reentry) {
             GridDirtyEventService.send(grid);
