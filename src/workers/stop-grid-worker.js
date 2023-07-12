@@ -52,7 +52,7 @@ const stopGrid = async function(grid) {
 
         // close grid
         if (await instanceRepository.stopGrid(grid, true)) {
-            eventRepository.create(
+            await eventRepository.create(
                 grid, 'GridDirty',
                 LEVEL_CRITICAL,
                 `Grid Stopped, init syncing process...`
