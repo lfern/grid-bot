@@ -50,10 +50,12 @@ const stopGrid = async function(grid) {
         lock = await LockService.acquire(['grid-instance-' + grid], 60000);
         console.log(`StopGridWorker: lock acquired for grid ${grid}`);
 
+        let instance = instanceRepository.getInstance(grid, true);
+
         // close grid
-        if (await instanceRepository.stopGrid(grid, true)) {
+        if (await instanceRepository.stopGrid(instance.id, true)) {
             await eventRepository.create(
-                grid, 'GridDirty',
+                instance, 'GridDirty',
                 LEVEL_CRITICAL,
                 `Grid Stopped, init syncing process...`
             );
