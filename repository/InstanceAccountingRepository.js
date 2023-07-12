@@ -103,6 +103,9 @@ class InstanceAccountRepository {
                     dbOrder.average = order.average;
                     dbOrder.filled = order.filled;
                     dbOrder.remaining = order.remaining;
+                    if (order.status != 'open' && order.status != 'closed' && order.filled == 0) {
+                        dbOrder.trades_ok = true;
+                    }
                     await dbOrder.save({transaction});
                 }
             }
@@ -203,6 +206,26 @@ class InstanceAccountRepository {
                 strategy_instance_id: instanceId,
                 trades_ok: false
             }
+        });
+    }
+
+    async tryFixOrderTradesOk(orderId) {
+        await models.StrategyInstanceOrder.update({
+            'trades_ok': true
+        },{
+            where: {
+                id: orderId,
+                [models.Sequelize.Op.or] : [{
+                    amount: {
+                        [models.Sequelize.Op.eq]: models.sequelize.col('trades_filled')
+                    }
+                }, {
+                    status: {[models.Sequelize.Op.notIn]: ['open', 'closed']},
+                    filled: {
+                        [models.Sequelize.Op.eq]: models.sequelize.col('trades_filled')
+                    }
+                }]
+            },
         });
     }
 

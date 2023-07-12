@@ -10,6 +10,7 @@ const StopGridEventService = require('../services/StopGridEventService');
 const LockService = require('../services/LockService');
 const { StrategyInstanceGridRepository } = require("../../repository/StrategyInstanceGridRepository");
 const { BaseExchangeCcxtOrder } = require("../crypto/exchanges/ccxt/BaseExchangeCcxtOrder");
+const notificationEventService = require("../services/NotificationEventService");
 
 /** @typedef {import("../services/OrderEventService").OrderDataEvent} OrderDataEvent */
 /** @typedef {import("../crypto/exchanges/BaseExchange").BaseExchange} BaseExchange*/
@@ -52,9 +53,9 @@ const stopGrid = async function(grid) {
         // close grid
         if (await instanceRepository.stopGrid(grid, true)) {
             eventRepository.create(
-                this.instance, 'GridDirty',
+                grid, 'GridDirty',
                 LEVEL_CRITICAL,
-                `Could not recover grid sending order ${ex.message}. Stopping grid!!!`
+                `Grid Stopped, init syncing process...`
             );
         } else {
             console.log(`StopGridWorker, Grid already stopped in DB ${grid}`)
@@ -99,7 +100,7 @@ const cancelOrRecoverOrder = async function(grid) {
             let dbOrder = await instanceAccountRepository.getNextOrderNotFilled(instance.id);
             if (dbOrder != null) {
                 console.log(`StopGridWorker: try recover trades for order id ${dbOrder.exchange_order_id} for grid ${grid}`);
-                await recoverOrder(instance, exchange, dbOrder);
+                await recoverOrder(instance, account, exchange, dbOrder);
                 return true;
             }
             // no pending orders to be cancelled and all orders ok
@@ -116,7 +117,7 @@ const cancelOrRecoverOrder = async function(grid) {
 };
 
 /**
- * Try to cancel order or fetch it if order not found error 
+ * Cancel order and update database
  * 
  * @param {StrategyInstanceModel} instance 
  * @param {AccountModel} account 
@@ -128,20 +129,10 @@ const cancelOrder = async function(instance, account, exchange, gridEntry) {
     let order = await instanceAccountRepository.getOrderById(gridEntry.order_id);
     // and remove for pending
     await pendingAccountRepository.removeOrderSymbol(account.id, instance.strategy.symbol, order.exchange_order_id);
-    let fetchedOrder;
-    try {
-        // cancel orders
-        fetchedOrder = await exchange.cancelOrder(order.exchange_order_id, instance.strategy.symbol);
-    } catch (ex) {
-        console.error(`StopGridWorker: Error canceling order ${order.exchange_order_id} for grid ${instance.id} ${ex.message}`)
-        // the order could be cancelled before
-        if (ex instanceof OrderNotFound) {
-            fetchedOrder = await exchange.fetchOrder(order.exchange_order_id, instance.strategy.symbol);
-        }
-    }
-
+    let fetchedOrder = await cancelOrFetchOrder(instance.id, exchange, order.exchange_order_id, instance.strategy.symbol);
     // update order in database and remove order id from grid entry
-    if (fetchedOrder != null) {
+    // if order status still open, something wrong or exchange takes some time to change order status, try later again
+    if (fetchedOrder != null && fetchedOrder.status != 'open') {
         await instanceAccountRepository.updateOrder(account.id, fetchedOrder);
         await gridEntry.update({
             exchange_order_id: null
@@ -151,16 +142,54 @@ const cancelOrder = async function(instance, account, exchange, gridEntry) {
 }
 
 /**
+ * Try to cancel order or fetch it if order not found error 
+ * 
+ * @param {StrategyInstanceModel} instance 
+ * @param {BaseExchange} exchange 
+ * @param {string} orderId 
+ * @param {string} symbol 
+ */
+const cancelOrFetchOrder = async function(instanceId, exchange, orderId, symbol) {
+    let fetchedOrder;
+    try {
+        // cancel orders
+        fetchedOrder = await exchange.cancelOrder(orderId, symbol);
+        if (fetchedOrder.status == 'open') {
+            fetchedOrder = await exchange.fetchOrder(orderId, symbol);
+        }
+    } catch (ex) {
+        // the order could be cancelled before
+        if (ex instanceof OrderNotFound) {
+            console.error(`StopGridWorker: Error canceling order ${orderId} for grid ${instanceId} ${ex.message}`);
+            fetchedOrder = await exchange.fetchOrder(orderId, symbol);
+        } else {
+            console.error(`StopGridWorker: Error canceling order ${orderId} for grid ${instanceId}`, ex)
+        }
+    }
+
+    return fetchedOrder;
+}
+
+/**
  * Recover trades for order and try to check filled attribute
  *  
  * @param {StrategyInstance} instance 
  * @param {BaseExchange} exchange 
  * @param {StrategyInstanceOrder} order 
  */
-const recoverOrder = async function(instance, exchange, dbOrder) {
+const recoverOrder = async function(instance, account, exchange, dbOrder) {
     // Any order should not be in open status 
     if (dbOrder.status == 'open') {
         console.error(`StopGridWorker: order status still open for ${dbOrder.exchange_order_id} in DB for grid ${instance.id}`);
+        notificationEventService.send(
+            'SyncingError',
+            LEVEL_CRITICAL,
+            `Order still opened in database after syncing stopped instance ${instance.id} order ${dbOrder.exchange_order_id}`
+        );
+        //let fetchedOrder = await cancelOrFetchOrder(instance.id, exchange, dbOrder.exchange_order_id, instance.strategy.symbol);
+        //if (fetchedOrder != null) {
+        //    await instanceAccountRepository.updateOrder(account.id, fetchedOrder);
+        //}
     }
 
     // Get orders trades from exchange
@@ -175,6 +204,7 @@ const recoverOrder = async function(instance, exchange, dbOrder) {
 
     // It should be filled, so print error
     if (!filled.eq(dbOrder.amount) || (dbOrder.status != 'open' && dbOrder.status != 'closed' && !filled.eq(dbOrder.filled))) {
-        console.error(`StopGridWorker: order not really filled in grid ${instance.id} ${dbOrder.exchange_order_id}`);
+        console.error(`StopGridWorker: order not really filled in grid ${instance.id} ${dbOrder.exchange_order_id}. Try to update db filled data`);
+        await instanceAccountRepository.tryFixOrderTradesOk(dbOrder.id);
     }  
 }
