@@ -32,7 +32,7 @@ class StrategyInstanceGridRepository {
         notCanceledFound = false;
         let cancelledBuys = buys.filter(findFirstNotCancelled).length;
 
-        if ((cancelledBuys.length == 0 || cancelledBuys.length > cancelledSells.length) && sellsToCancel.length > 0) {
+        if ((buysToCancel.length == 0 || cancelledBuys > cancelledSells) && sellsToCancel.length > 0) {
             return sellsToCancel[0];
         } else if (buysToCancel.length > 0) {
             return buysToCancel[0];
