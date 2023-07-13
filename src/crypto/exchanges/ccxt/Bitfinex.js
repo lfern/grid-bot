@@ -85,12 +85,12 @@ class Bitfinex extends BaseExchangeCcxt {
     async fetchOrder(id, symbol = undefined) {
         try {
             return new BaseExchangeCcxtOrder(
-                await this.ccxtExchange.fetchClosedOrder(id, symbol)
+                await this.ccxtExchange.fetchOpenOrder(id, symbol)
             );
         } catch (ex) {
             if (ex instanceof OrderNotFound) {
                 return new BaseExchangeCcxtOrder(
-                    await this.ccxtExchange.fetchOpenOrder(id, symbol)
+                    await this.ccxtExchange.fetchClosedOrder(id, symbol)
                 );
             }
             throw ex;

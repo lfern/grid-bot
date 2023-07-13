@@ -52,6 +52,10 @@ const stopGrid = async function(grid) {
 
         let instance = await instanceRepository.getInstance(grid, true);
 
+        if (instance == null) {
+            return false;
+        }
+
         // close grid
         if (await instanceRepository.stopGrid(instance.id, true)) {
             await eventRepository.create(
@@ -188,11 +192,11 @@ const recoverOrder = async function(instance, account, exchange, dbOrder) {
     // Any order should not be in open status 
     if (dbOrder.status == 'open') {
         console.error(`StopGridWorker: order status still open for ${dbOrder.exchange_order_id} in DB for grid ${instance.id}`);
-        notificationEventService.send(
-            'SyncingError',
-            LEVEL_CRITICAL,
-            `Order still opened in database after syncing stopped instance ${instance.id} order ${dbOrder.exchange_order_id}`
-        );
+        //notificationEventService.send(
+        //    'SyncingError',
+        //    LEVEL_CRITICAL,
+        //    `Order still opened in database after syncing stopped instance ${instance.id} order ${dbOrder.exchange_order_id}`
+        //);
         //let fetchedOrder = await cancelOrFetchOrder(instance.id, exchange, dbOrder.exchange_order_id, instance.strategy.symbol);
         //if (fetchedOrder != null) {
         //    await instanceAccountRepository.updateOrder(account.id, fetchedOrder);
