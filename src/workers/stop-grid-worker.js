@@ -55,7 +55,7 @@ const stopGrid = async function(grid) {
         // close grid
         if (await instanceRepository.stopGrid(instance.id, true)) {
             await eventRepository.create(
-                instance, 'GridDirty',
+                instance, 'GridStopping',
                 LEVEL_CRITICAL,
                 `Grid Stopped, init syncing process...`
             );
@@ -65,7 +65,7 @@ const stopGrid = async function(grid) {
         return true;
     } catch (ex) {
         console.error(`StopGridWorker: error stopping grid ${grid}:`, ex);
-        NotificationEventService.send("GridDirtyWorksr", LEVEL_CRITICAL, `Error stopping grid ${grid} ${ex.message}`);
+        NotificationEventService.send("GridDirtyWorker", LEVEL_CRITICAL, `Error stopping grid ${grid} ${ex.message}`);
     } finally {
         if (lock != null){try {await lock.unlock();} catch(ex){
             console.error("StopGridWorker: Error trying to unlock " ,ex);
@@ -107,6 +107,11 @@ const cancelOrRecoverOrder = async function(grid) {
             }
             // no pending orders to be cancelled and all orders ok
             await instanceRepository.gridSynced(grid);
+            await eventRepository.create(
+                instance, 'GridStopped',
+                LEVEL_CRITICAL,
+                `Grid Stopped`
+            );
         }
     } catch (ex) {
         console.error(`StopGridWorker: error stopping grid ${grid}:`, ex);
@@ -162,7 +167,7 @@ const cancelOrFetchOrder = async function(instanceId, exchange, orderId, symbol)
     } catch (ex) {
         // the order could be cancelled before
         if (ex instanceof OrderNotFound) {
-            console.error(`StopGridWorker: Error canceling order ${orderId} for grid ${instanceId} ${ex.message}`);
+            console.error(`StopGridWorker: Error canceling order ${orderId} ${symbol} for grid ${instanceId} ${ex.message}`);
             fetchedOrder = await exchange.fetchOrder(orderId, symbol);
         } else {
             console.error(`StopGridWorker: Error canceling order ${orderId} for grid ${instanceId}`, ex)
@@ -201,7 +206,7 @@ const recoverOrder = async function(instance, account, exchange, dbOrder) {
     let filled = BigNumber(0);
     for (let i=0;i<trades.length;i++) {
         await instanceAccountRepository.createTrade(account.id, trades[i]);
-        filled.plus(trade[i].amount);
+        filled.plus(trades[i].amount);
     }
 
     // It should be filled, so print error
