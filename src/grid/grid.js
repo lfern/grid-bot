@@ -129,6 +129,7 @@ class GridManager {
                 side: side,
                 active: false,
                 exchange_order_id: null,
+                filled: 0,
                 order_id: null,
                 matching_order_id: null,
             });
@@ -705,7 +706,7 @@ ${entry.active}\t${entry.order_qty}\t${entry.exchange_order_id}\t${entry.order_i
                     newEntry.order_qty = result.newOrderData.amount;
                     newEntry.side = result.newOrderData.side;
                     newEntry.active = true;
-                    newEntry.filled = null;
+                    newEntry.filled = 0;
                     newEntry.exchange_order_id = createdOrder.id;
                     newEntry.order_id = newDbOrder.id;
                     newEntry.matching_order_id = result.newOrderData.motherOrderId;
@@ -716,7 +717,7 @@ ${entry.active}\t${entry.order_qty}\t${entry.exchange_order_id}\t${entry.order_i
                         order_qty: result.newOrderData.amount,
                         side: result.newOrderData.side,
                         exchange_order_id: createdOrder.id,
-                        filled: null,
+                        filled: 0,
                         order_id: newDbOrder.id,
                         matching_order_id: result.newOrderData.motherOrderId,
                     }, {transaction});
