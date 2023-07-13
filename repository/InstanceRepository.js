@@ -177,8 +177,10 @@ class InstanceRepository {
         await models.StrategyInstance.update({
             stop_requested_at: models.sequelize.fn('NOW'),
         }, {
-            id: instanceId,
-            stop_requested_at: { [models.Sequelize.Op.is]: null }
+            where: {
+                id: instanceId,
+                stop_requested_at: { [models.Sequelize.Op.is]: null }
+            }
         })
     }
 }
