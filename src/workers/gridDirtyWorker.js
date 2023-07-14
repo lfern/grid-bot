@@ -38,9 +38,6 @@ exports.gridDirtyWorker = async (job, done) => {
     } finally {
         if (lock != null){try {await lock.unlock();} catch(ex){console.error("GridDirtyWorker: Error trying to unlock " ,ex);}}
         console.log(`GridDirtyWorker lock released for grid ${grid}`);
-        if (reentry) {
-            GridDirtyEventService.send(grid);
-        }
     }
     done(null, { message: "grid dirty worker event executed" });
 }
