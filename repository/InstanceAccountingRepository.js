@@ -229,6 +229,18 @@ class InstanceAccountRepository {
         });
     }
 
+    async updateOrderTradesFilled(orderId, filled) {
+        await models.StrategyInstanceOrder.update({
+            'trades_filled': filled
+        },{
+            where: {
+                id: orderId,
+            },
+        });
+
+        await this.tryFixOrderTradesOk(orderId);
+    }
+
 }
 
 module.exports = {InstanceAccountRepository}
