@@ -197,10 +197,10 @@ const recoverOrder = async function(instance, account, exchange, dbOrder) {
         //    LEVEL_CRITICAL,
         //    `Order still opened in database after syncing stopped instance ${instance.id} order ${dbOrder.exchange_order_id}`
         //);
-        //let fetchedOrder = await cancelOrFetchOrder(instance.id, exchange, dbOrder.exchange_order_id, instance.strategy.symbol);
-        //if (fetchedOrder != null) {
-        //    await instanceAccountRepository.updateOrder(account.id, fetchedOrder);
-        //}
+        let fetchedOrder = await cancelOrFetchOrder(instance.id, exchange, dbOrder.exchange_order_id, instance.strategy.symbol);
+        if (fetchedOrder != null) {
+            await instanceAccountRepository.updateOrder(account.id, fetchedOrder);
+        }
     }
 
     // Get orders trades from exchange
@@ -213,9 +213,13 @@ const recoverOrder = async function(instance, account, exchange, dbOrder) {
         filled.plus(trades[i].amount);
     }
 
-    // It should be filled, so print error
-    if (!filled.eq(dbOrder.amount) || (dbOrder.status != 'open' && dbOrder.status != 'closed' && !filled.eq(dbOrder.filled))) {
-        console.error(`StopGridWorker: order not really filled in grid ${instance.id} ${dbOrder.exchange_order_id}. Try to update db filled data`);
-        await instanceAccountRepository.tryFixOrderTradesOk(dbOrder.id);
-    }  
+    if (dbOrder.status != 'open' && filled.eq(dbOrder.filled)) {
+        await instanceAccountRepository.updateOrderTradesFilled(dbOrder.id, filled.toFixed());
+    } else {
+        // It should be filled, so print error
+        if (!filled.eq(dbOrder.amount) || (dbOrder.status != 'open' && dbOrder.status != 'closed' && !filled.eq(dbOrder.filled))) {
+            console.error(`StopGridWorker: order not really filled in grid ${instance.id} ${dbOrder.exchange_order_id}. Try to update db filled data`);
+            await instanceAccountRepository.tryFixOrderTradesOk(dbOrder.id);
+        }  
+    }
 }
