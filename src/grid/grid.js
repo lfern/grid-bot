@@ -452,15 +452,18 @@ ${entry.active}\t${entry.order_qty}\t${entry.exchange_order_id}\t${entry.order_i
         let srcSide = executedEntry.side;
         let dstSide;
         let signIndex;
-        let activeOrders;
+        let activeOrdersSrc;
+        let activeOrdersDst;
         if (srcSide == 'buy') {
             dstSide = 'sell';
             signIndex = -1;
-            activeOrders = this.strategy.active_sells;
+            activeOrdersDst = this.strategy.active_sells;
+            activeOrdersSrc = this.strategy.active_buys;
         } else {
             dstSide = 'buy';
             signIndex = 1;
-            activeOrders = this.strategy.active_buys;    
+            activeOrdersDst = this.strategy.active_buys;    
+            activeOrdersSrc = this.strategy.active_sells;
         }
         // insert other side entry
         let otherSideIndex = index + signIndex;
@@ -469,7 +472,7 @@ ${entry.active}\t${entry.order_qty}\t${entry.exchange_order_id}\t${entry.order_i
             this._createNextSideGridEntry(gridEntries[index], gridEntries[otherSideIndex], dstSide, otherSide);
         }
         // insert +nth buy if posible
-        let indexSideToAdd = index + activeOrders * (-signIndex);
+        let indexSideToAdd = index + activeOrdersSrc * (-signIndex);
         let indexSideFrom = indexSideToAdd + signIndex;
         if (indexSideToAdd >= 0 && indexSideToAdd < gridEntries.length &&
             indexSideFrom >= 0 && indexSideFrom < gridEntries.length) {
@@ -478,7 +481,7 @@ ${entry.active}\t${entry.order_qty}\t${entry.exchange_order_id}\t${entry.order_i
         // remove buy at index
         this._resetGridEntry(executedEntry, false);
         // remove -nth sell above if posible
-        let indexSideToRemove = index + (activeOrders+1) * signIndex;
+        let indexSideToRemove = index + (activeOrdersDst+1) * signIndex;
         if (indexSideToRemove >= 0 && indexSideToRemove < gridEntries.length) {
             const toRemoveEntry = gridEntries[indexSideToRemove];
             if (toRemoveEntry.exchange_order_id != null) {
@@ -490,20 +493,22 @@ ${entry.active}\t${entry.order_qty}\t${entry.exchange_order_id}\t${entry.order_i
         }
     }
 
-    _createNextSideGridEntry(srcEntry, dstEntry, dstSide, otherSide) {
+    _createNextSideGridEntry(srcEntry, dstEntry, dstSide, otherSide) {console.log(srcEntry);console.log(dstEntry)
         let lastPosition = new BigNumber(srcEntry.position_before_order);
         let lastOrderQty = new BigNumber(srcEntry.order_qty);
         let nextOrderQty;
+        let nextFilled;
         if (!otherSide) {
             // if not other side (we are adding and order to complete the active orders)
             if (dstEntry.matching_order_id != null) {
                 if (dstEntry.order_qty == null) {
-                    console.error("Something wrong. Found emptru order_qty when placing a other side order!!!");
+                    console.error("Something wrong. Found empty order_qty when placing a other side order!!!");
                 }
 
                 // if there were a matching_order_id (and should have a order_qty from a cancelled
                 // order matched from mother order) we recover it
                 nextOrderQty = dstEntry.order_qty;
+                nextFilled = dstEntry.filled;
             } else {
                 // else new order
                 if (srcEntry.side == 'buy') {
@@ -511,6 +516,7 @@ ${entry.active}\t${entry.order_qty}\t${entry.exchange_order_id}\t${entry.order_i
                 } else {
                     nextOrderQty = dstEntry.sell_order_qty;
                 }
+                nextFilled = 0;
             }
         } else {
             // new order 
@@ -519,6 +525,7 @@ ${entry.active}\t${entry.order_qty}\t${entry.exchange_order_id}\t${entry.order_i
             }
 
             nextOrderQty = srcEntry.order_qty;
+            nextFilled = 0;
             dstEntry.order_id = null;
             dstEntry.matching_order_id = srcEntry.order_id;
         }
@@ -528,7 +535,7 @@ ${entry.active}\t${entry.order_qty}\t${entry.exchange_order_id}\t${entry.order_i
                 this.strategy.symbol,
                 lastPosition.plus(lastOrderQty).toFixed()
             );
-        } else {
+        } else {console.log(lastOrderQty);console.log(lastPosition);
             dstEntry.position_before_order = this.exchange.amountToPrecision2(
                 this.strategy.symbol,
                 lastPosition.minus(lastOrderQty).toFixed()
@@ -541,6 +548,7 @@ ${entry.active}\t${entry.order_qty}\t${entry.exchange_order_id}\t${entry.order_i
                 nextOrderQty//dstEntry.sell_order_qty
             );
 
+            dstEntry.filled = nextFilled;
             dstEntry.side = dstSide;
             dstEntry.active = false;
             dstEntry.exchange_order_id = null;
@@ -550,6 +558,7 @@ ${entry.active}\t${entry.order_qty}\t${entry.exchange_order_id}\t${entry.order_i
                 nextOrderQty//dstEntry.buy_order_qty
             );
 
+            dstEntry.filled = nextFilled;
             dstEntry.side = dstSide;
             dstEntry.active = false;
             dstEntry.exchange_order_id = null;
