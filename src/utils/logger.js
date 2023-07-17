@@ -1,5 +1,6 @@
 
 const winston = require('winston');
+require('winston-daily-rotate-file');
 const util =require('util');
 
 let logger = null;
@@ -79,15 +80,32 @@ let initLogger = function(allFile, errorFile) {
     // Allow the use the console to print the messages
     new winston.transports.Console({format: formatConsole}),
     // Allow to print all the error level messages inside the error.log file
-    new winston.transports.File({
-      filename: errorFile, //process.env.LOGGER_ERROR_FILE || 'logs/error.log',
+    //new winston.transports.File({
+    //  filename: errorFile, //process.env.LOGGER_ERROR_FILE || 'logs/error.log',
+    //  level: 'error',
+    //}),
+    new winston.transports.DailyRotateFile({
+      filename: errorFile,
+      datePattern: 'YYYY-MM-DD-HH',
+      zippedArchive: true,
+      maxSize: '20m',
+      maxFiles: '7d',
+      prepend: true,
       level: 'error',
     }),
     // Allow to print all the error message inside the all.log file
     // (also the error log that are also printed inside the error.log(
-    new winston.transports.File({ 
-      filename: allFile, //process.env.LOGGER_ALL_FILE || 'logs/all.log' 
-    }),
+    //new winston.transports.File({ 
+    //  filename: allFile, //process.env.LOGGER_ALL_FILE || 'logs/all.log' 
+    //}),
+    new winston.transports.DailyRotateFile({
+      filename: allFile,
+      datePattern: 'YYYY-MM-DD-HH',
+      zippedArchive: true,
+      maxSize: '20m',
+      maxFiles: '7d',
+      prepend: true,
+     }),
   ]
 
   // Create the logger instance that has to be exported
