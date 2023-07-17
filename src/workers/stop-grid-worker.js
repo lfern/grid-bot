@@ -157,7 +157,7 @@ const cancelOrder = async function(instance, account, exchange, gridEntry) {
         }
     } catch (ex) {
         if (ex instanceof OrderNotFound) {
-            console.error(`StopGridWorker: error trying to cancel order from grid ${instance.id} ${gridEntry.order_id}`, ex);
+            console.error(`StopGridWorker: error trying to cancel order from grid ${instance.id} ${gridEntry.order_id} removing from grid entry`, ex);
             // maybe the order has been canceled before or some problem in de exchange. So just remove it from grid and
             // try again later when recover trades for this order.
             await gridEntry.update({
@@ -221,11 +221,11 @@ const recoverOrder = async function(instance, account, exchange, dbOrder) {
             }
         } catch (ex) {
             if (ex instanceof OrderNotFound) {
-                console.error(`StopGridWorker: Order not found in exchange for order ${dbOrder.exchange_order_id}, symbol ${instance.strategy.symbol} and grid ${grid}. Setting order to OK so syncing doesn't hangs`, ex);
+                console.error(`StopGridWorker: Order not found in exchange for order ${dbOrder.exchange_order_id}, symbol ${instance.strategy.symbol} and grid ${instance.id}. Setting order to OK so syncing doesn't hangs`, ex);
                 await eventRepository.create(
                     instance, 'GridStopping',
                     LEVEL_CRITICAL,
-                    `Order not found in exchange for order ${dbOrder.exchange_order_id}, symbol ${instance.strategy.symbol} and grid ${grid}. Setting order to OK so syncing doesn't hangs`
+                    `Order not found in exchange for order ${dbOrder.exchange_order_id}, symbol ${instance.strategy.symbol} and grid ${instance.id}. Setting order to OK so syncing doesn't hangs`
                 );
 
                 await instanceAccountRepository.setForceTradesOk(dbOrder.id);
