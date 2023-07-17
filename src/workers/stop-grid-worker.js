@@ -208,7 +208,9 @@ const recoverOrder = async function(instance, account, exchange, dbOrder) {
     }
 
     // Get orders trades from exchange
+    console.log(`StopGridWorker: getting order trades for order ${dbOrder.exchange_order_id}, Symbol: ${instance.strategy.symbol} for grid ${instance.id}`);
     let trades = await exchange.fetchOrderTrades(dbOrder.exchange_order_id, instance.strategy.symbol);
+    console.log(`StopGridWorker: Trades for order  ${dbOrder.exchange_order_id}, Symbol: ${instance.strategy.symbol} for grid ${instance.id}`, trades);
 
     // Add Trades to the DB
     let filled = BigNumber(0);
