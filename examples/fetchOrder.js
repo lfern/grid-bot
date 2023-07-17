@@ -33,16 +33,8 @@ let exchange = exchangeInstance(process.env.EXCHANGE, {
     secret: process.env.SECRET,
 });
 
-
+console.log(values.id, values.symbol)
 exchange.fetchOrder(values.id, values.symbol)
     .then(results => {console.log("Results:", results)}).catch(ex => {
-        exchange.fetchClosedOrder(values.id, values.symbol)
-            .then(results => console.log("Results:", results))
-            .catch(ex => {
-                if (ex instanceof ccxt.OrderNotFound) {
-                    exchange.fetchOpenOrder(values.id, values.symbol).then(results => console.log("Results:", results));
-                } else {
-                    throw ex;
-                }       
-            });
+        console.error(ex);
     });
