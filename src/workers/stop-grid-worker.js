@@ -216,7 +216,7 @@ const recoverOrder = async function(instance, account, exchange, dbOrder) {
     let filled = BigNumber(0);
     for (let i=0;i<trades.length;i++) {
         await instanceAccountRepository.createTrade(account.id, trades[i]);
-        filled.plus(trades[i].amount);
+        filled = filled.plus(trades[i].amount);
     }
 
     if (dbOrder.status != 'open' && filled.eq(dbOrder.filled)) {
