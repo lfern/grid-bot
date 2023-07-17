@@ -252,11 +252,11 @@ const recoverOrder = async function(instance, account, exchange, dbOrder) {
         if (filled.eq(dbOrder.filled)) {
             await instanceAccountRepository.updateOrderTradesFilled(dbOrder.id, filled.toFixed());
         } else {
-            console.error(`StopGridWorker: Trades amount differ for order amount from exchange for order ${dbOrder.exchange_order_id}, symbol ${instance.strategy.symbol} and grid ${grid}. Setting order to OK so syncing doesn't hangs`, ex);
+            console.error(`StopGridWorker: Trades amount differ for order amount from exchange for order ${dbOrder.exchange_order_id}, symbol ${instance.strategy.symbol} and grid ${instance.id}. Setting order to OK so syncing doesn't hangs`, ex);
             await eventRepository.create(
                 instance, 'GridStopping',
                 LEVEL_CRITICAL,
-                `Trades amount differ for order amount from exchange for order ${dbOrder.exchange_order_id}, symbol ${instance.strategy.symbol} and grid ${grid}. Setting order to OK so syncing doesn't hangs`
+                `Trades amount differ for order amount from exchange for order ${dbOrder.exchange_order_id}, symbol ${instance.strategy.symbol} and grid ${instance.id}. Setting order to OK so syncing doesn't hangs`
             );
             await instanceAccountRepository.setForceTradesOk(dbOrder.id);
         }
