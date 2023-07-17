@@ -144,15 +144,28 @@ const cancelOrder = async function(instance, account, exchange, gridEntry) {
     let order = await instanceAccountRepository.getOrderById(gridEntry.order_id);
     // and remove for pending
     await pendingAccountRepository.removeOrderSymbol(account.id, instance.strategy.symbol, order.exchange_order_id);
-    let fetchedOrder = await cancelOrFetchOrder(instance.id, exchange, order.exchange_order_id, instance.strategy.symbol);
-    // update order in database and remove order id from grid entry
-    // if order status still open, something wrong or exchange takes some time to change order status, try later again
-    if (fetchedOrder != null && fetchedOrder.status != 'open') {
-        await instanceAccountRepository.updateOrder(account.id, fetchedOrder);
-        await gridEntry.update({
-            exchange_order_id: null
-        });
+    try {
+        let fetchedOrder = await cancelOrFetchOrder(instance.id, exchange, order.exchange_order_id, instance.strategy.symbol);
+        // update order in database and remove order id from grid entry
+        // if order status still open, something wrong or exchange takes some time to change order status, try later again
+        if (fetchedOrder != null && fetchedOrder.status != 'open') {
+            await instanceAccountRepository.updateOrder(account.id, fetchedOrder);
+            await gridEntry.update({
+                exchange_order_id: null
+            });
 
+        }
+    } catch (ex) {
+        if (ex instanceof OrderNotFound) {
+            console.error(`StopGridWorker: error trying to cancel order from grid ${instance.id} ${gridEntry.order_id}`, ex);
+            // maybe the order has been canceled before or some problem in de exchange. So just remove it from grid and
+            // try again later when recover trades for this order.
+            await gridEntry.update({
+                exchange_order_id: null
+            });
+        } else {
+            throw ex;
+        }
     }
 }
 
@@ -201,9 +214,25 @@ const recoverOrder = async function(instance, account, exchange, dbOrder) {
         //    LEVEL_CRITICAL,
         //    `Order still opened in database after syncing stopped instance ${instance.id} order ${dbOrder.exchange_order_id}`
         //);
-        let fetchedOrder = await cancelOrFetchOrder(instance.id, exchange, dbOrder.exchange_order_id, instance.strategy.symbol);
-        if (fetchedOrder != null) {
-            await instanceAccountRepository.updateOrder(account.id, fetchedOrder);
+        try {
+            let fetchedOrder = await cancelOrFetchOrder(instance.id, exchange, dbOrder.exchange_order_id, instance.strategy.symbol);
+            if (fetchedOrder != null) {
+                await instanceAccountRepository.updateOrder(account.id, fetchedOrder);
+            }
+        } catch (ex) {
+            if (ex instanceof OrderNotFound) {
+                console.error(`StopGridWorker: Order not found in exchange for order ${dbOrder.exchange_order_id}, symbol ${instance.strategy.symbol} and grid ${grid}. Setting order to OK so syncing doesn't hangs`, ex);
+                await eventRepository.create(
+                    instance, 'GridStopping',
+                    LEVEL_CRITICAL,
+                    `Order not found in exchange for order ${dbOrder.exchange_order_id}, symbol ${instance.strategy.symbol} and grid ${grid}. Setting order to OK so syncing doesn't hangs`
+                );
+
+                instanceAccountRepository.setForceTradesOk(dbOrder.id);
+
+            } else {
+                throw ex;
+            }
         }
     }
 
