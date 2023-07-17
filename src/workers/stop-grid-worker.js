@@ -222,7 +222,7 @@ const recoverOrder = async function(instance, account, exchange, dbOrder) {
     } else {
         // It should be filled, so print error
         if (!filled.eq(dbOrder.amount) || (dbOrder.status != 'open' && dbOrder.status != 'closed' && !filled.eq(dbOrder.filled))) {
-            console.error(`StopGridWorker: order not really filled in grid ${instance.id} ${dbOrder.exchange_order_id} order filled/amount: ${dbOrder.filled}/${dbOrder.amount}, Trades amount: {$filled}. Try to update db filled data`);
+            console.error(`StopGridWorker: order not really filled in grid ${instance.id} ${dbOrder.exchange_order_id} order filled/amount: ${dbOrder.filled}/${dbOrder.amount}, Trades amount: ${filled}. Try to update db filled data`);
             await instanceAccountRepository.tryFixOrderTradesOk(dbOrder.id);
         }  
     }
