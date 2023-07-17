@@ -209,6 +209,16 @@ class InstanceAccountRepository {
         });
     }
 
+    async setForceTradesOk(orderId) {
+        await models.StrategyInstanceOrder.update({
+            'trades_ok': true
+        },{
+            where: {
+                id: orderId,
+            }
+        });
+    }
+
     async tryFixOrderTradesOk(orderId) {
         await models.StrategyInstanceOrder.update({
             'trades_ok': true
