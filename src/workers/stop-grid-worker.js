@@ -69,7 +69,11 @@ const stopGrid = async function(grid) {
         return true;
     } catch (ex) {
         console.error(`StopGridWorker: error stopping grid ${grid}:`, ex);
-        NotificationEventService.send("GridDirtyWorker", LEVEL_CRITICAL, `Error stopping grid ${grid} ${ex.message}`);
+        await eventRepository.create(
+            instance, 'GridStopping',
+            LEVEL_CRITICAL,
+            `Error stopping grid ${grid} ${ex.message}`
+        );
     } finally {
         if (lock != null){try {await lock.unlock();} catch(ex){
             console.error("StopGridWorker: Error trying to unlock " ,ex);
@@ -218,7 +222,7 @@ const recoverOrder = async function(instance, account, exchange, dbOrder) {
     } else {
         // It should be filled, so print error
         if (!filled.eq(dbOrder.amount) || (dbOrder.status != 'open' && dbOrder.status != 'closed' && !filled.eq(dbOrder.filled))) {
-            console.error(`StopGridWorker: order not really filled in grid ${instance.id} ${dbOrder.exchange_order_id}. Try to update db filled data`);
+            console.error(`StopGridWorker: order not really filled in grid ${instance.id} ${dbOrder.exchange_order_id} order filled/amount: ${dbOrder.filled}/${dbOrder.amount}, Trades amount: {$filled}. Try to update db filled data`);
             await instanceAccountRepository.tryFixOrderTradesOk(dbOrder.id);
         }  
     }
