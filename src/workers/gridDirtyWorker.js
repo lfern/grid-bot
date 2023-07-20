@@ -8,7 +8,7 @@ const GridDirtyEventService = require('../services/GridDirtyEventService');
 const LockService = require('../services/LockService');
 const GridNoFundsEventService = require('../services/GridNoFundsEventService');
 const { StrategyInstanceEventRepository, LEVEL_ERROR, LEVEL_CRITICAL, LEVEL_WARN } = require('../../repository/StrategyInstanceEventRepository');
-const notificationEventService = require('../services/NotificationEventService');
+const {NotificationEventService, SCOPE_STRATEGY} = require('../services/NotificationEventService');
 const StopGridEventService = require('../services/StopGridEventService');
 const recoveryRepository = new StrategyInstanceRecoveryGridRepository();
 const instanceRepository = new InstanceRepository();
@@ -34,7 +34,12 @@ exports.gridDirtyWorker = async (job, done) => {
         StopGridEventService.send(grid);
     } catch (ex) {
         console.error(`GridDirtyWorker: error stopping grid ${grid}:`, ex);
-        notificationEventService.send("GridDirtyWorksr", LEVEL_CRITICAL, `Error stopping grid ${grid} ${ex.message}`);
+        NotificationEventService.send(
+            "GridDirtyWorksr",
+            LEVEL_CRITICAL,
+            `Error stopping grid ${grid} ${ex.message}`,
+            {scope: SCOPE_STRATEGY, strategyId: grid}
+        );
     } finally {
         if (lock != null){try {await lock.unlock();} catch(ex){console.error("GridDirtyWorker: Error trying to unlock " ,ex);}}
         console.log(`GridDirtyWorker lock released for grid ${grid}`);
@@ -69,7 +74,12 @@ exports.gridDirtyWorkerOld = async (job, done) => {
 
     if (1 == 1) {
         console.log("RECOVER IS DISABLED FOR NOW");
-        notificationEventService.send("Not implemented", LEVEL_WARN, "RECOVER GRID PROCESS IS DISABLED FOR NOW!!");
+        NotificationEventService.send(
+            "Not implemented",
+            LEVEL_WARN,
+            "RECOVER GRID PROCESS IS DISABLED FOR NOW!!",
+            {scope: SCOPE_STRATEGY, strategyId: grid},
+        );
         done(null, { message: "grid dirty worker event executed" });
         return;
     }

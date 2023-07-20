@@ -7,7 +7,7 @@ const models = require('../../models');
 const { InstanceRepository } = require("../../repository/InstanceRepository");
 const OrderSenderEventService = require("../services/OrderSenderEventService");
 const { default: ccxt } = require("ccxt");
-const NotificationEventService = require("../services/NotificationEventService");
+const {NotificationEventService, SCOPE_OTHER} = require("../services/NotificationEventService");
 const { LEVEL_CRITICAL, LEVEL_INFO } = require("../../repository/StrategyInstanceEventRepository");
 
 let transactionRepository = new BroadcastTransactionRepository();
@@ -89,6 +89,7 @@ exports.checkDepositWorker = async function(job, done) {
                                 'TransferError',
                                 LEVEL_CRITICAL,
                                 `Error trying to transfer funds ${currency} ${amount} from ${fromWallet} to ${toWallet} for account ${accountId}: ${ex.message}`,
+                                {scope: SCOPE_OTHER},
                                 {account: accountId}
                             ); 
                             console.error(`CheckDeposithandler: no permissions error when trying to transfer${currency} ${amount} from ${fromWallet} to ${toWallet} for ${accountId}`);
@@ -100,6 +101,7 @@ exports.checkDepositWorker = async function(job, done) {
                                 'TransferError',
                                 LEVEL_CRITICAL,
                                 `Error trying to transfer funds ${currency} ${amount} from ${fromWallet} to ${toWallet} for account ${accountId}: ${ex.message}`,
+                                {scope: SCOPE_OTHER},
                                 {account: accountId}
                             );
                             throw ex;
@@ -112,6 +114,7 @@ exports.checkDepositWorker = async function(job, done) {
                 'DepositMatched',
                 LEVEL_INFO,
                 `Deposit matched for last transaction sent. Trying to send pending orders for account ${accountId}`,
+                {scope: SCOPE_OTHER},
             );
 
             // flag all running instances to nofunds = false

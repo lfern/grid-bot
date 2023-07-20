@@ -5,12 +5,11 @@ const { InstanceRepository } = require("../../repository/InstanceRepository");
 const { PendingAccountRepository } = require("../../repository/PendingAccountRepository");
 const { StrategyInstanceEventRepository, LEVEL_CRITICAL } = require("../../repository/StrategyInstanceEventRepository");
 const { exchangeInstanceFromAccount } = require("../services/ExchangeMarket");
-const NotificationEventService = require("../services/NotificationEventService");
+const {NotificationEventService, SCOPE_STRATEGY} = require("../services/NotificationEventService");
 const StopGridEventService = require('../services/StopGridEventService');
 const LockService = require('../services/LockService');
 const { StrategyInstanceGridRepository } = require("../../repository/StrategyInstanceGridRepository");
 const { BaseExchangeCcxtOrder } = require("../crypto/exchanges/ccxt/BaseExchangeCcxtOrder");
-const notificationEventService = require("../services/NotificationEventService");
 
 /** @typedef {import("../services/OrderEventService").OrderDataEvent} OrderDataEvent */
 /** @typedef {import("../crypto/exchanges/BaseExchange").BaseExchange} BaseExchange*/
@@ -123,7 +122,12 @@ const cancelOrRecoverOrder = async function(grid) {
         }
     } catch (ex) {
         console.error(`StopGridWorker: error stopping grid ${grid}:`, ex);
-        NotificationEventService.send("GridDirtyWorksr", LEVEL_CRITICAL, `Error stopping grid ${grid} ${ex.message}`);
+        NotificationEventService.send(
+            "GridDirtyWorksr",
+            LEVEL_CRITICAL,
+            `Error stopping grid ${grid} ${ex.message}`,
+            {scope: SCOPE_STRATEGY, strategyId: grid},
+        );
     } finally {
         if (lock != null){try {await lock.unlock();} catch(ex){console.error("StopGridWorker: Error trying to unlock " ,ex);}}
         console.log(`StopGridWorker lock released for grid ${grid}`);
@@ -209,11 +213,6 @@ const recoverOrder = async function(instance, account, exchange, dbOrder) {
     // Any order should not be in open status 
     if (dbOrder.status == 'open') {
         console.error(`StopGridWorker: order status still open for ${dbOrder.exchange_order_id} in DB for grid ${instance.id}`);
-        //notificationEventService.send(
-        //    'SyncingError',
-        //    LEVEL_CRITICAL,
-        //    `Order still opened in database after syncing stopped instance ${instance.id} order ${dbOrder.exchange_order_id}`
-        //);
         try {
             let fetchedOrder = await cancelOrFetchOrder(instance.id, exchange, dbOrder.exchange_order_id, instance.strategy.symbol);
             if (fetchedOrder != null) {

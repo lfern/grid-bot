@@ -3,7 +3,7 @@ const { InstanceRepository } = require("../../repository/InstanceRepository");
 const { StrategyInstanceEventRepository, LEVEL_CRITICAL } = require("../../repository/StrategyInstanceEventRepository");
 const LockService = require('../services/LockService');
 const {exchangeInstanceFromAccount} = require('../services/ExchangeMarket');
-const NotificationEventService = require("../services/NotificationEventService");
+const {NotificationEventService, SCOPE_STRATEGY} = require("../services/NotificationEventService");
 
 /** @typedef {import('../services/GridNoFundsEventService').GridNoFundsMessageData} GridNoFundsMessageData} */
 
@@ -37,6 +37,7 @@ exports.gridNoFundsWorker = async function(job, done) {
                 'NoTransferPermission',
                 LEVEL_CRITICAL,
                 `Didn't send broadcast transaction for grid ${grid} because account ${accountId} doesn't have transfer permission`,
+                {scope: SCOPE_STRATEGY, strategyId: grid},
                 {account: accountId}
             )
             return;

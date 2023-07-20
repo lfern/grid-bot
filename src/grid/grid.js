@@ -35,7 +35,7 @@ class GridManager {
         this.exchange = exchange;
         this.instance = instance;
         this.strategy = strategy;
-        this.currentPosition = new BigNumber(strategy.initial_position);
+        this.currentPosition = new BigNumber(instance.initial_position);
         this.step = new BigNumber(strategy.step);
         this.orderQty = new BigNumber(strategy.order_qty);
         this.instanceAccRepository = new InstanceAccountRepository();
@@ -157,7 +157,7 @@ class GridManager {
                 i+1,
                 this.strategy.sell_orders - i,
                 'sell',
-                i < this.strategy.active_sells,
+                i < this.instance.active_sells,
                 currentPriceBig,
                 currentPosition,
             );
@@ -171,7 +171,7 @@ class GridManager {
                 i+1,
                 this.strategy.sell_orders + i + 2,
                 'buy',
-                i < this.strategy.active_buys,
+                i < this.instance.active_buys,
                 currentPriceBig,
                 currentPosition
             );
@@ -300,6 +300,8 @@ class GridManager {
      * @property {boolean} gridDirty - grid dirty
      * @property {boolean} delayed - order delayed (not in grid now)
      * @property {boolean} gridUpdated - 
+     * @property {string|null} highestBuyOrder
+     * @property {string|null} lowestSellOrder
      */
 
     /**
@@ -352,6 +354,8 @@ class GridManager {
         let ret = {
             gridDirty: false,
             delayed: false,
+            highestBuyOrder: null,
+            lowestSellOrder: null,
         };
         // grid is locked so don't need lock in db
         // get all grid entries orderes by buy id
@@ -400,6 +404,14 @@ class GridManager {
             if (indexHigherBuy != indexOrder) {
                 console.error("buy order executed is not the higher buy in ther grid???");
                 ret.gridDirty = true;
+                if (indexHigherBuy != -1) {
+                    ret.highestBuyOrder = gridEntries[indexHigherBuy].exchange_order_id; 
+                }
+
+                if (indexLowerSell != -1) {
+                    ret.lowestSellOrder = gridEntries[indexLowerSell].exchange_order_id; 
+                }
+
                 return ret;
             }
 
@@ -412,6 +424,15 @@ class GridManager {
             if (indexLowerSell != indexOrder) {
                 console.error("sell order executed is not the lower sell in ther grid???");
                 ret.gridDirty = true;
+
+                if (indexHigherBuy != -1) {
+                    ret.highestBuyOrder = gridEntries[indexHigherBuy].exchange_order_id; 
+                }
+                
+                if (indexLowerSell != -1) {
+                    ret.lowestSellOrder = gridEntries[indexLowerSell].exchange_order_id; 
+                }
+
                 return ret;
             }
 
@@ -457,13 +478,13 @@ ${entry.active}\t${entry.order_qty}\t${entry.exchange_order_id}\t${entry.order_i
         if (srcSide == 'buy') {
             dstSide = 'sell';
             signIndex = -1;
-            activeOrdersDst = this.strategy.active_sells;
-            activeOrdersSrc = this.strategy.active_buys;
+            activeOrdersDst = this.instance.active_sells;
+            activeOrdersSrc = this.instance.active_buys;
         } else {
             dstSide = 'buy';
             signIndex = 1;
-            activeOrdersDst = this.strategy.active_buys;    
-            activeOrdersSrc = this.strategy.active_sells;
+            activeOrdersDst = this.instance.active_buys;    
+            activeOrdersSrc = this.instance.active_sells;
         }
         // insert other side entry
         let otherSideIndex = index + signIndex;
@@ -809,15 +830,15 @@ ${entry.active}\t${entry.order_qty}\t${entry.exchange_order_id}\t${entry.order_i
             lastSide = entry.side;
         }
 
-        if (buys != this.strategy.active_buys) {
-            let error = `Invalid grid ${this.instance.id}, expected ${this.strategy.active_buys} active buys but ${buys} found`;
+        if (buys != this.instance.active_buys) {
+            let error = `Invalid grid ${this.instance.id}, expected ${this.instance.active_buys} active buys but ${buys} found`;
             console.log(error);
             this._printGrid(gridEntries);
             return {ok: false, error};
         }
 
-        if (sells != this.strategy.active_sells) {
-            let error = `CheckGridClean: not valid grid ${this.instance.id}, expected ${this.strategy.active_sells} active sells but ${sells} found`;
+        if (sells != this.instance.active_sells) {
+            let error = `CheckGridClean: not valid grid ${this.instance.id}, expected ${this.instance.active_sells} active sells but ${sells} found`;
             console.log(error);
             this._printGrid(gridEntries);
             return {ok: false, error};

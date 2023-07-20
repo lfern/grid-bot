@@ -1,4 +1,5 @@
 const models = require('../../models');
+const { SCOPE_STRATEGY, SCOPE_OTHER } = require('../services/NotificationEventService');
 const TelegramService = require('../services/TelegramService');
 /** @typedef {import('../services/NotificationEventService').NotificationMessageData} NotificationMessageData */
 
@@ -8,12 +9,43 @@ const TelegramService = require('../services/TelegramService');
  * @param {NotificationMessageData} data 
  */
 exports.notificationHandler = async function (data, timestamp, telegramBotToken) {
-    let telegramChats = await models.TelegramChatid.findAll({
-        where: {
-            level: { [models.Sequelize.Op.lte]: data.level},
-            is_valid: true,
+    let telegramChats = [];
+
+    if (data.scope) {
+        if (data.scope.scope == SCOPE_STRATEGY) {
+            let chatIds = await models.TelegramScopeStrategy.findAll({
+                attributes:['telegram_chat_id'],
+                where: {strategy_id: data.scope.strategyId},
+            });
+    
+            telegramChats = await models.TelegramChatid.findAll({
+                where: {
+                    level: { [models.Sequelize.Op.lte]: data.level},
+                    scope: 'strategy',
+                    id: chatIds.map(function(d){ return d.telegram_chat_id}),
+                    is_valid: true,
+                }
+            });
+        } else if (data.scope.scope == SCOPE_OTHER) {
+            telegramChats = await models.TelegramChatid.findAll({
+                where: {
+                    level: { [models.Sequelize.Op.lte]: data.level},
+                    scope: 'other',
+                    is_valid: true,
+                }
+            });
         }
-    });
+    }
+
+    if (telegramChats.length == 0) {
+        telegramChats = await models.TelegramChatid.findAll({
+            where: {
+                level: { [models.Sequelize.Op.lte]: data.level},
+                scope: null,
+                is_valid: true,
+            }
+        });
+    }
 
     for(let i=0; i < telegramChats.length; i++) {
         let telegramChat = telegramChats[i];

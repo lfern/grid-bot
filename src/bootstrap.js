@@ -1,13 +1,18 @@
 const { InstanceRepository } = require('../repository/InstanceRepository');
 const { LEVEL_WARN } = require('../repository/StrategyInstanceEventRepository');
-const NotificationEventService = require('./services/NotificationEventService');
+const {NotificationEventService, SCOPE_OTHER} = require('./services/NotificationEventService');
 const OrderSenderEventService = require('./services/OrderSenderEventService');
 
 const instanceRepository = new InstanceRepository();
 
 const tradingServiceBootstrap = async function () {
     try {
-        NotificationEventService.send('TradingServiceStarted', LEVEL_WARN, 'Trading service initialized or reinitialized');
+        NotificationEventService.send(
+            'TradingServiceStarted',
+            LEVEL_WARN,
+            'Trading service initialized or reinitialized',
+            { scope: SCOPE_OTHER}
+        );
         
         let pendingOrderGrids = await instanceRepository.getPendingSendOrdersRuningInstances();
         for (let i=0;i<pendingOrderGrids.length;i++) {
@@ -22,7 +27,12 @@ const tradingServiceBootstrap = async function () {
 
 const eventsWatcherBootstrap = async function() {
     try {
-        NotificationEventService.send('EventsWatcherStarted', LEVEL_WARN, 'Events Watcher service initialized or reinitialized');
+        NotificationEventService.send(
+            'EventsWatcherStarted',
+            LEVEL_WARN,
+            'Events Watcher service initialized or reinitialized',
+            {scope: SCOPE_OTHER}
+        );
     } catch (ex) {
         console.error(ex);
     }
@@ -30,7 +40,12 @@ const eventsWatcherBootstrap = async function() {
 
 const notificationServicerBootstrap = async function() {
     try {
-        NotificationEventService.send('NotificationServiceStarted', LEVEL_WARN, 'Notification service initialized or reinitialized');
+        NotificationEventService.send(
+            'NotificationServiceStarted',
+            LEVEL_WARN,
+            'Notification service initialized or reinitialized',
+            {scope: SCOPE_OTHER}
+        );
     } catch (ex) {
         console.error(ex);
     }

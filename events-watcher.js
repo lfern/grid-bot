@@ -14,7 +14,7 @@ const {initLogger, captureConsoleLog} = require("./src/utils/logger");
 const TradeEventService = require('./src/services/TradeEventService');
 const OrderEventService = require('./src/services/OrderEventService');
 const BalanceEventService = require('./src/services/BalanceEventService');
-const NotificationEventService = require('./src/services/NotificationEventService');
+const {NotificationEventService} = require('./src/services/NotificationEventService');
 const { eventsWatcherBootstrap } = require("./src/bootstrap");
 
 initLogger(

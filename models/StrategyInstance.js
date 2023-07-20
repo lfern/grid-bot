@@ -77,7 +77,19 @@ module.exports = (sequelize, DataTypes) => {
         syncing_at: {
             allowNull: true,
             type: DataTypes.DATE,
-        }       
+        },
+        initial_position: {
+            allowNull: false,
+            type: DataTypes.DECIMAL(30, 15),
+        },
+        active_buys: {
+            allowNull: false,
+            type: DataTypes.INTEGER,
+        },
+        active_sells: {
+            allowNull: false,
+            type: DataTypes.INTEGER,
+        }      
     }, {
         tableName: 'strategy_instances'
     });
