@@ -46,7 +46,7 @@ module.exports = (sequelize, DataTypes) => {
         },
         scope: {
             allowNull: true,
-            type: DataTypes.ENUM('strategy', 'other'),
+            type: DataTypes.ENUM('strategy', 'other', 'strategy-other'),
         }
 
 

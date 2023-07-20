@@ -1,5 +1,5 @@
 const models = require('../../models');
-const { SCOPE_STRATEGY, SCOPE_OTHER } = require('../services/NotificationEventService');
+const { SCOPE_STRATEGY, SCOPE_OTHER, SCOPE_STRATEGY_OTHER } = require('../services/NotificationEventService');
 const TelegramService = require('../services/TelegramService');
 /** @typedef {import('../services/NotificationEventService').NotificationMessageData} NotificationMessageData */
 
@@ -21,7 +21,7 @@ exports.notificationHandler = async function (data, timestamp, telegramBotToken)
             telegramChats = await models.TelegramChatid.findAll({
                 where: {
                     level: { [models.Sequelize.Op.lte]: data.level},
-                    scope: 'strategy',
+                    scope: [SCOPE_STRATEGY, SCOPE_STRATEGY_OTHER],
                     id: chatIds.map(function(d){ return d.telegram_chat_id}),
                     is_valid: true,
                 }
@@ -30,7 +30,7 @@ exports.notificationHandler = async function (data, timestamp, telegramBotToken)
             telegramChats = await models.TelegramChatid.findAll({
                 where: {
                     level: { [models.Sequelize.Op.lte]: data.level},
-                    scope: 'other',
+                    scope: [SCOPE_OTHER, SCOPE_STRATEGY_OTHER],
                     is_valid: true,
                 }
             });

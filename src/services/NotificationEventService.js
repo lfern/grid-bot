@@ -5,6 +5,7 @@ const { EventService } = require('./EventService');
 
 const SCOPE_STRATEGY = 'strategy';
 const SCOPE_OTHER = 'other';
+const SCOPE_STRATEGY_OTHER = 'strategy-other';
 
 /**
  * @typedef {Object} NotificationMessageDataScope
@@ -53,4 +54,5 @@ module.exports = {
     NotificationEventService: notificationEventService,
     SCOPE_STRATEGY,
     SCOPE_OTHER,
+    SCOPE_STRATEGY_OTHER,
 }
