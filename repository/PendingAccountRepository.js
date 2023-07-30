@@ -150,6 +150,16 @@ class PendingAccountRepository {
         return await models.AccountPendingTrade.findAll(options);
     }
 
+    async getOrders(accountId, symbol, orders) {
+        return await models.AccountPendingOrder.findAll({
+            where: {
+                account_id: accountId,
+                symbol: symbol,
+                order_id: orders    
+            },
+        });
+    }
+
     async removeNotFoundOrdersOlderThan(seconds, transaction = null) {
         const options = {
             where: {

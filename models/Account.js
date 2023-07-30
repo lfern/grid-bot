@@ -95,6 +95,10 @@ module.exports = (sequelize, DataTypes) => {
         holder: {
             allowNull: true,
             type: DataTypes.STRING,
+        },
+        synced_at: {
+            allowNull: true,
+            type: DataTypes.DATE
         }
     }, {
         tableName: 'accounts'

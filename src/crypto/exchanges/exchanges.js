@@ -5,7 +5,8 @@ const exc = require('./exceptions/ExchangeError');
 
 const exchanges = {
     'bitfinex2': require('./Bitfinex').Bitfinex,
-    'bitmex': require('./Bitmex').Bitmex
+    'bitmex': require('./Bitmex').Bitmex,
+    'deribit': require('./Deribit').Deribit,
 }
 
 /**

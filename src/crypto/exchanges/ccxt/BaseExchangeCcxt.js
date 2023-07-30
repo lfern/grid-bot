@@ -10,6 +10,7 @@ const {overrides} = require('./override');
 const { SimpleThrottlerCache } = require("./throttlers/SimpleThrottlerCache");
 
 /** @typedef {import('../BaseExchange').ExchangeOptions} ExchangeOptions */
+/** @typedef {import('../BaseExchange').ExtendedLedgerEntry} ExtendedLedgerEntry */
 
 let cacheThrottler = new SimpleThrottlerCache();
 
@@ -173,6 +174,68 @@ class BaseExchangeCcxt extends BaseExchange {
     }
 
     /** @inheritdoc */
+    async fetchLedger(code = undefined, since = undefined, limit = undefined, params = {}) {
+        return await this.ccxtExchange.fetchLedger(code, since, limit, params)   
+    }
+
+     /** @inheritdoc */
+     async fetchExtendedLedger(code = undefined, since = undefined, limit = undefined, params = {}) {
+        let newLedger = [];
+        let ledger = await this.fetchLedger(code, since, limit, params);
+        for(let i=0;i<ledger.length;i++) {
+            let entry = ledger[i];
+            /** @type {ExtendedLedgerEntry} */
+            let newEntry = {
+                account: entry.account,
+                after: entry.after,
+                amount: entry.amount,
+                before: entry.before,
+                currency: entry.currency,
+                datetime: entry.datetime,
+                direction: entry.direction,
+                fee: entry.fee ? {
+                    cost: entry.fee.cost,
+                    currency: entry.fee.currency
+                } : undefined,
+                id: entry.id,
+                info: entry.info,
+                newFAmountChange: entry.amount,
+                newFDescription: undefined,
+                newFHolder: undefined,
+                newFSymbol: undefined,
+                newFStatus: entry.status,
+                newFOrderId: undefined,
+                newFSubtype: undefined,
+                newFType: undefined,
+                newFWallet: undefined,
+                newFOtherData: undefined,
+                referenceAccount: entry.referenceAccount,
+                referenceId: entry.referenceId,
+                status: entry.status,
+                timestamp: entry.timestamp,
+                type: entry.type,
+            };
+
+            newEntry = this.parseExtendedLedgerEntry(newEntry);
+            newLedger.push(newEntry)
+        }
+        
+        return newLedger;
+    }
+
+    /** @inheritdoc */
+    async fetchMyTrades(symbol = undefined, since = undefined, limit = undefined, params = {}) {
+        let trades = await this.ccxtExchange.fetchMyTrades(symbol, since, limit, params);
+        let newTrades = [];
+        trades.forEach(o => {
+            o = this.parseExtendedTrade(o);
+            newTrades.push(new BaseExchangeCcxtTrade(o));
+        })
+
+        return newTrades;
+    }
+
+    /** @inheritdoc */
     async fetchOpenOrder(id, symbol = undefined) {
         return new BaseExchangeCcxtOrder(
             await this.ccxtExchange.fetchOpenOrder(id, symbol)
@@ -213,6 +276,7 @@ class BaseExchangeCcxt extends BaseExchange {
         let trades = await this.ccxtExchange.fetchOrderTrades(id, symbol);
         let newTrades = [];
         trades.forEach(t => {
+            o = this.parseExtendedTrade(o);
             newTrades.push(new BaseExchangeCcxtTrade(t));
         })
 
@@ -235,6 +299,7 @@ class BaseExchangeCcxt extends BaseExchange {
         let trades = await this.ccxtExchange.fetchTrades(symbol, since, limit);
         let newTrades = [];
         trades.forEach(t => {
+            o = this.parseExtendedTrade(o);
             newTrades.push(new BaseExchangeCcxtTrade(t));
         })
 
@@ -325,6 +390,23 @@ class BaseExchangeCcxt extends BaseExchange {
         return this.ccxtExchange.markets;
     }
 
+    /**
+     * 
+     * @param {ExtendedLedgerEntry} entry 
+     */
+    parseExtendedLedgerEntry(entry) {
+        return entry;
+    }
+
+    /**
+     * 
+     * @param {ccxt.Trade} entry 
+     */
+    parseExtendedTrade(entry) {
+        entry.account = undefined;
+        return entry;
+    }
+    
     /** @inheritdoc */
     priceToPrecision(symbol, price) {
         return this.ccxtExchange.priceToPrecision(symbol, price);
@@ -377,6 +459,7 @@ class BaseExchangeCcxt extends BaseExchange {
 
         let newTrades = [];
         trades.forEach(t => {
+            o = this.parseExtendedTrade(o);
             newTrades.push(new BaseExchangeCcxtTrade(t));
         })
 
@@ -393,6 +476,7 @@ class BaseExchangeCcxt extends BaseExchange {
 
         return newTrades;
     }
+    
 
 
 }

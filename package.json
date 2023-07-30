@@ -12,9 +12,11 @@
     "start-trading-service": "node trading-service.js",
     "start-events-watcher": "node events-watcher.js",
     "start-notification-service": "node notification-service.js",
+    "start-sync-service": "node sync-service.js",
     "debug-trading-service": "nodemon trading-service.js",
     "debug-events-watcher": "nodemon events-watcher.js",
-    "debug-notification-service": "nodemon notification-service.js"
+    "debug-notification-service": "nodemon notification-service.js",
+    "debug-sync-service": "nodemon sync-service.js"
   },
   "repository": {
     "type": "git",

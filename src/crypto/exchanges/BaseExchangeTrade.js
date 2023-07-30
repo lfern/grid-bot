@@ -97,6 +97,14 @@ class BaseExchangeTrade {
     }
 
     /**
+     * Account
+     * @returns {string}
+     */
+    get account() {
+        throw new Error("NOT IMPLEMENTED");
+    }
+
+    /**
      * @returns {object}
      */
      toJson() {

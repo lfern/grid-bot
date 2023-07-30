@@ -44,22 +44,29 @@ class InstanceAccountRepository {
         }, transaction != null ?{transaction}:{})
     }
     
-    async getOrder(accountId, order) {
+    async getOrder(accountId, order, includeInstance = false) {
         return await this.getOrderSymbol(
                 accountId,
                 order.symbol,
-                order.id
+                order.id,
+                includeInstance
         );
     }
 
-    async getOrderSymbol(accountId, symbol, exchange_order_id) {
-        return await models.StrategyInstanceOrder.findOne({
+    async getOrderSymbol(accountId, symbol, exchange_order_id, includeInstance = false) {
+        let options = {
             where: {
                 account_id: accountId,
                 symbol: symbol,
                 exchange_order_id: exchange_order_id
             },
-        });
+        };
+
+        if (includeInstance) {
+            options.include = [models.StrategyInstanceOrder.StrategyInstance];
+        }
+
+        return await models.StrategyInstanceOrder.findOne(options);
     }
 
     async getOrderById(id) {

@@ -73,6 +73,16 @@ class BaseExchangeCcxtTrade extends BaseExchangeTrade {
     }
 
     /** @inheritdoc */
+    get account() {
+        return this.ccxtTrade.account;
+    }
+
+    /** @inheritdoc */
+    get wallet() {
+        return this.ccxtTrade.wallet;
+    }
+
+    /** @inheritdoc */
     toJson() {
         return this.ccxtTrade;
     }

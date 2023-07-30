@@ -1,4 +1,3 @@
-const {logger} = require('../src/utils/logger');
 if (process.env.NODE_ENV !== "production") {
   require("dotenv").config();
 }
@@ -11,7 +10,7 @@ module.exports = {
     "host": process.env.DEV_POSTGRES_HOSTNAME,
     "port": process.env.DEV_POSTGRES_PORT,
     "dialect": "postgres",
-    logging: process.env.LOG_QUERIES ? (msg) => logger.info(msg) : false
+    logging: process.env.LOG_QUERIES ? (msg) => console.info(msg) : false
   },
   "test": {
     "username": process.env.TEST_POSTGRES_USERNAME,

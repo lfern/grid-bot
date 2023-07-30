@@ -32,8 +32,8 @@ let exchange = exchangeInstance(process.env.EXCHANGE, {
     secret: process.env.SECRET,
 });
 
-exchange.ccxtExchange.fetchMyTrades(values.symbol, undefined, 100, {
-    reverse: true,
-}).then(results => {//fetchOrderTrades(values.orderid, values.symbol).then(results => {
-    console.log("Results:", results);
+exchange.fetchMyTrades(values.symbol, undefined, 5, {filter: {execType:'Funding'}}).then(results => {
+//exchange.fetchMyTrades(values.symbol, undefined, 1, {filter: {execType:undefined}}).then(results => {
+//exchange.fetchMyTrades(values.symbol, 1000, 2).then(results => {
+    console.log("Results:", JSON.stringify(results, null, 2));
 }).catch(ex => { console.log(ex)});
