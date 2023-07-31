@@ -219,7 +219,9 @@ class Bitmex extends BaseExchangeCcxt {
     parseExtendedTrade(entry) {
         entry.account = this.ccxtExchange.safeString(entry.info, 'account');
         let market = undefined;
-    
+
+        let settlCurrency = this.ccxtExchange.safe(entry.info, 'settlCurrency');
+        entry.wallet = this.safeCurrencyCode(settlCurrency);
         
         if (entry.fee && (entry.fee.currency == null || entry.fee.currency == undefined)) {
             try {

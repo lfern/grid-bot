@@ -76,6 +76,8 @@ class BitmexSync extends BaseExchangeSync {
             if (execType === 'Trade') {
                 curCreated = await this.repository.addExecution(accountId, this.exchange.getExchangeName(), userInfo.holder, entry);
             } else {
+                // hack amount from trade (satoshis)
+                entry.amount = entry.amount / 100000000;
                 let fundingEntry = this.getFundingFeeExtendedLedgerEntry(entry);
                 curCreated = await this.repository.addLedger(accountId, this.exchange.getExchangeName(), userInfo.holder, fundingEntry);
             }
