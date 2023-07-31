@@ -11,7 +11,7 @@ const { Deribit } = require("../../crypto/exchanges/Deribit");
 
 class DeribitSync extends BaseExchangeSync {
     async sync(accountId) {
-        let userInfos = this.exchange.userInfoAccounts();
+        let userInfos = await this.exchange.userInfoAccounts();
         let userDict = {};
         for(let i=0;i<userInfos.length;i++) {
             let userInfo = userInfos[i];
@@ -116,7 +116,7 @@ class DeribitSync extends BaseExchangeSync {
             fee: undefined,
             id: "" + entry.id +"@0",
             info: entry.info,
-            newFAmountChange: entry.fee.cost,
+            newFAmountNoChange: entry.fee.cost,
             newFDescription: entry.newFDescription,
             newFHolder: entry.newFHolder,
             newFOrderId: entry.newFOrderId,

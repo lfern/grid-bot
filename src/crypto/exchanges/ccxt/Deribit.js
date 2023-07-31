@@ -38,10 +38,11 @@ class Deribit extends BaseExchangeCcxt {
      * @param {ExtendedLedgerEntry} entry 
      */
     parseExtendedLedgerEntry(entry) {
+        entry.newFAmountNoChange = this.ccxtExchange.safeNumber(entry.info, 'amount');
         if (entry.direction == 'out') {
             entry.amount = -entry.amount;
-            if (entry.newFAmountChange != undefined) {
-                entry.newFAmountChange = -entry.newFAmountChange;
+            if (entry.newFAmountNoChange != undefined) {
+                entry.newFAmountNoChange = -entry.newFAmountNoChange;
             }
         }
 
@@ -55,11 +56,10 @@ class Deribit extends BaseExchangeCcxt {
         entry.newFOrderId = this.ccxtExchange.safeString(entry.info, 'order_id');
         entry.newFWallet = entry.currency;
 
-        entry.newFAmountChange = this.ccxtExchange.safeNumber(entry.info, 'change');
         let type = this.ccxtExchange.safeString(entry.info, 'type');
         if (type == 'trade') {
             entry.newFType = LedgerTypes.LEDGER_TRADE_TYPE;
-            let side = this.ccxtExchange.safeString('side');
+            let side = this.ccxtExchange.safeString(entry.info, 'side');
             entry.newFSubtype = this.parseExtendedLedgerEntrySide(side);
         } else if (type == 'deposit') {
             entry.newFType = LedgerTypes.LEDGER_DEPOSIT_TYPE;
@@ -91,6 +91,10 @@ class Deribit extends BaseExchangeCcxt {
                 entry.newFType = LedgerTypes.LEDGER_OTHER_DEBIT_TYPE;
                 entry.newFSubtype = LedgerTypes.LEDGER_OTHER_DEBIT_SUBTYPE;
             }
+        }
+
+        if (entry.newFSubtype != LedgerTypes.LEDGER_DEPOSIT_TYPE || entry.newFSubtype != LedgerTypes.LEDGER_WITHDRAWAL_TYPE) {
+            entry.newFSymbol = this.ccxtExchange.safeString(entry.info, 'instrument_name');
         }
 
         return entry;

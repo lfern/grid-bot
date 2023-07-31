@@ -165,13 +165,19 @@ class Bitfinex extends BaseExchangeCcxt {
         }
 
         entry.status = 'ok';
-        entry.newFAmountChange = entry.amount;
+        entry.newFAmountNoChange = entry.amount;
         
         if (type == undefined) {
-            entry.newFType = amount > 0 ? LedgerTypes.LEDGER_OTHER_CREDIT_TYPE : LedgerTypes.LEDGER_OTHER_DEBIT_TYPE;
+            if (amount > 0) {
+                entry.newFType = LedgerTypes.LEDGER_OTHER_CREDIT_TYPE;
+                entry.newFSubtype = LedgerTypes.LEDGER_OTHER_CREDIT_SUBTYPE;
+            } else {
+                entry.newFType = LedgerTypes.LEDGER_OTHER_DEBIT_TYPE;
+                entry.newFSubtype = LedgerTypes.LEDGER_OTHER_DEBIT_SUBTYPE;
+            }
         } else if (type.indexOf('deposit') >= 0) {
             entry.newFType = LedgerTypes.LEDGER_DEPOSIT_TYPE;
-            entry.newFType = LedgerTypes.LEDGER_DEPOSIT_SUBTYPE;
+            entry.newFSubtype = LedgerTypes.LEDGER_DEPOSIT_SUBTYPE;
         } else if (type.indexOf('canceled withdrawal fee') >= 0) {
             entry.newFType = LedgerTypes.LEDGER_FEE_TYPE;
             entry.newFSubtype = LedgerTypes.LEDGER_CANCELED_WITHDRAWAL_FEE_SUBTYPE;
@@ -237,6 +243,15 @@ class Bitfinex extends BaseExchangeCcxt {
     /** @inheritdoc */
     parseExtendedTrade(entry) {
         entry.account = this.ccxtExchange.safeString(entry.info, 'account');
+        const market = this.ccxtExchange.market(entry.symbol);
+        if (market.swap) {
+            entry.wallet = 'funding';
+        } else if (market.margin) {
+            entry.wallet = 'margin';
+        } else {
+            entry.wallet = 'exchange';
+        }
+
         return entry;
     }
     

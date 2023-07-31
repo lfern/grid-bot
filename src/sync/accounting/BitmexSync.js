@@ -29,6 +29,11 @@ class BitmexSync extends BaseExchangeSync {
         console.log(`BitmexSync: ${accountId} last ledger request response lenght: ${entries.length}`)
         for(let i=0;i<entries.length;i++) {
             let entry = entries[i];
+            if (entry.id == '00000000-0000-0000-0000-000000000000') {
+                // skip this ids
+                continue;
+            }
+            
             let curCreated;
             if (entry.fee != undefined && entry.fee.cost > 0) {
                 let feeEntry = this.getFeeExtendedLedgerEntry(entry);
@@ -102,7 +107,7 @@ class BitmexSync extends BaseExchangeSync {
             fee: undefined,
             id: "" + entry.id +"@0",
             info: entry.info,
-            newFAmountChange: entry.fee.cost,
+            newFAmountNoChange: entry.fee.cost,
             newFDescription: entry.newFDescription,
             newFHolder: entry.newFHolder,
             newFOrderId: entry.newFOrderId,

@@ -199,7 +199,7 @@ class BaseExchangeCcxt extends BaseExchange {
                 } : undefined,
                 id: entry.id,
                 info: entry.info,
-                newFAmountChange: entry.amount,
+                newFAmountNoChange: entry.amount,
                 newFDescription: undefined,
                 newFHolder: undefined,
                 newFSymbol: undefined,

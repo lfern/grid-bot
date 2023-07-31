@@ -1,6 +1,6 @@
 const {BaseExchangeCcxt} = require("./BaseExchangeCcxt");
 const { BaseExchangeCcxtOrder } = require("./BaseExchangeCcxtOrder");
-const {TRUNCATE, ArgumentsRequired} = require('ccxt');
+const ccxt = require('ccxt');
 const { LedgerTypes } = require("../BaseExchange");
 const { entries } = require("lodash");
 
@@ -47,7 +47,7 @@ class Bitmex extends BaseExchangeCcxt {
 
             return newAmount;
         } catch (ex) {
-            if (ex instanceof ArgumentsRequired) {
+            if (ex instanceof ccxt.ArgumentsRequired) {
                 return 0;
             }
             throw ex;
@@ -149,12 +149,12 @@ class Bitmex extends BaseExchangeCcxt {
      */
     parseExtendedLedgerEntry(entry) {
         entry.newFWallet = entry.currency;
-        entry.newFAmountChange = entry.amount;
+        entry.newFAmountNoChange = entry.amount;
         entry.newFDescription = this.ccxtExchange.safeString(entry.info, 'text');
 
         const type = this.ccxtExchange.safeString(entry.info, 'transactType');
         const address = this.ccxtExchange.safeString(entry.info, 'address');       
-        if (type != 'Withdrawal') {
+        if (type != 'Withdrawal' && type != 'Transfer') {
             const symbol = this.ccxtExchange.safeSymbol(address, undefined);
             entry.newFSymbol = symbol;
         } else {
@@ -163,8 +163,8 @@ class Bitmex extends BaseExchangeCcxt {
 
         if (entry.direction == 'out') {
             entry.amount = -entry.amount;
-            if (entry.newFAmountChange != undefined) {
-                entry.newFAmountChange = -entry.newFAmountChange;
+            if (entry.newFAmountNoChange != undefined) {
+                entry.newFAmountNoChange = -entry.newFAmountNoChange;
             }
         }
 
@@ -218,6 +218,27 @@ class Bitmex extends BaseExchangeCcxt {
      */
     parseExtendedTrade(entry) {
         entry.account = this.ccxtExchange.safeString(entry.info, 'account');
+        let market = undefined;
+    
+        
+        if (entry.fee && (entry.fee.currency == null || entry.fee.currency == undefined)) {
+            try {
+                market = this.ccxtExchange.market(entry.symbol);
+            } catch (ex) {
+                if (ex instanceof ccxt.BadSymbol) {
+                    console.log(entry)
+                    market = this.ccxtExchange.safeMarket(entry.symbol);
+                    console.log(market);
+                } else {
+                    throw ex;
+                }
+            }
+
+            if (market && market.spot) {
+                entry.fee.currency = market.quote;
+            }
+        }
+
         return entry;
     }
 

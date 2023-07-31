@@ -42,7 +42,7 @@ const ccxt = require('ccxt');
  * @property {string} newFDescription
  * @property {string} newFOrderId
  * @property {string} newFSymbol
- * @property {number|undefined} newFAmountChange
+ * @property {number|undefined} newFAmountNoChange
  * @property {string} newFHolder
  * @property {any} newFOtherData
  */

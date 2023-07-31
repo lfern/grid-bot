@@ -83,6 +83,76 @@ class BaseExchangeCcxtTrade extends BaseExchangeTrade {
     }
 
     /** @inheritdoc */
+    set amount(d) {
+        this.ccxtTrade.amount = d;
+    }
+
+    /** @inheritdoc */
+    set cost(d) {
+        this.ccxtTrade.cost = d;
+    }
+
+    /** @inheritdoc */
+    set datetime(d) {
+        this.ccxtTrade.datetime = d;
+    }
+
+    /** @inheritdoc */
+    set feeCost(d) {
+        this.ccxtTrade.fee.cost = d;
+    }
+
+    /** @inheritdoc */
+    set feeCurrency(d) {
+        this.ccxtTrade.fee.currency = d;
+    }
+
+    /** @inheritdoc */
+    set id(d) {
+        this.ccxtTrade.id = d;
+    }
+
+    /** @inheritdoc */
+    set order(d) {
+        this.ccxtTrade.order = d;
+    }
+
+    /** @inheritdoc */
+    set price(d) {
+        this.ccxtTrade.price = d;
+    }
+
+    /** @inheritdoc */
+    set side(d) {
+        this.ccxtTrade.side = d;
+    }
+
+    /** @inheritdoc */
+    set symbol(d) {
+        this.ccxtTrade.symbol = d;
+    }
+
+    /** @inheritdoc */
+    set takerOrMaker(d) {
+        this.ccxtTrade.takerOrMaker = d;
+    }
+
+    /** @inheritdoc */
+    set timestamp(d) {
+        this.ccxtTrade.timestamp = d;
+    }
+
+    /** @inheritdoc */
+    set account(d) {
+        this.ccxtTrade.account = d;
+    }
+
+    /** @inheritdoc */
+    set wallet(d) {
+        this.ccxtTrade.wallet = d;
+    }
+
+    /** @inheritdoc */
     toJson() {
         return this.ccxtTrade;
     }

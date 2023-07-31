@@ -53,6 +53,8 @@ class BitfinexSync extends BaseExchangeSync {
         console.log(`BitfinexSync: ${accountId} last ledger request response lenght: ${entries.length}`)
         for(let i=0;i<entries.length;i++) {
             let entry = entries[i];
+            // hack account id
+            entry.account = userInfo.id;
             let curCreated = await this.repository.addLedger(accountId, this.exchange.getExchangeName(), userInfo.holder, entry);
             created = created | curCreated;
             if (entry.fee != undefined) {
@@ -89,6 +91,8 @@ class BitfinexSync extends BaseExchangeSync {
         console.log(`BitfinexSync: ${accountId} last trades request response lenght: ${entries.length}`)
         for(let i=0;i<entries.length;i++) {
             let entry = entries[i];
+            // hack account id
+            entry.account = userInfo.id;
             let curCreated = await this.repository.addExecution(accountId, this.exchange.getExchangeName(), userInfo.holder, entry);
             created = created | curCreated;
             lastTs = entry.timestamp;

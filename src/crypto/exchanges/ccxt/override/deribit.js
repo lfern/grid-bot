@@ -123,8 +123,8 @@ class deribit extends ccxt.pro.deribit {
         const type = this.parseLedgerEntryType(this.safeString(item, 'type'));
         const currencyId = this.safeString(item, 'currency');
         const code = this.safeCurrencyCode(currencyId, currency);
-        let account = this.safeString(item, 'username');
-        let amount = this.safeNumber(item, 'amount');
+        let account = this.safeString(item, 'user_id');
+        let amount = this.safeNumber(item, 'change');
         let timestamp = this.safeInteger(item, 'timestamp');
         if (timestamp === undefined) {
             // https://github.com/ccxt/ccxt/issues/6047
@@ -134,11 +134,12 @@ class deribit extends ccxt.pro.deribit {
         }
         let feeCost = this.safeNumber(item, 'commission', 0);
         const fee = {
-            'cost': feeCost,
+            'cost': -feeCost,
             'currency': code,
         };
         let after = this.safeNumber(item, 'balance');
-        const before = this.sum(after, -amount);
+        let before = this.sum(after, feeCost);
+        before = this.sum(after, -amount);
         let direction = undefined;
         if (amount < 0) {
             direction = 'out';
