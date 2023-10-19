@@ -390,6 +390,11 @@ class BaseExchangeCcxt extends BaseExchange {
         return this.ccxtExchange.markets;
     }
 
+    /** @inheritdoc */
+    get marketsById() {
+        return this.ccxtExchange.marketsById;
+    }
+    
     /**
      * 
      * @param {ExtendedLedgerEntry} entry 
