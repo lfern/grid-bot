@@ -70,7 +70,6 @@ exports.orderHandler = async function (accountId, dataOrder, delayed) {
                         // GridDirtyEventService.send(strategyInstance.id);
                     } else {
 
-                        // TODO: check if there is a pending order in the grid with lower createdAt 
                         let otherPreviousOrder = dataOrder;
 
                         // create exchange
@@ -79,12 +78,39 @@ exports.orderHandler = async function (accountId, dataOrder, delayed) {
         
                         let gridCreator = new GridManager(exchange, strategyInstance, strategyInstance.strategy);
                         let result = await gridCreator.handleOrder(otherPreviousOrder, delayed);
-   
+
+                        // TODO: check if there is a pending order in the grid with lower createdAt 
+/* uncomment this to check pending order
+                        if (result.gridDirty && (result.highestBuyOrder != null || result.lowestSellOrder != null)) {
+                            // try to find previous executed orders in pending tables
+                            console.log(`OrderHandler: grid dirty but try to find orders in pending tables (highest buy: ${result.highestBuyOrder}, lowest sell: ${result.lowestSellOrder})`);
+                            let orders = [];
+                            if (result.highestBuyOrder != null) {
+                                orders.push(result.highestBuyOrder);
+                            }
+
+                            if (result.lowestSellOrder != null) {
+                                orders.push(result.lowestSellOrder);
+                            }
+                            let dbPendingOrders = await pendingAccountRepository.getOrders(account.id, strategyInstance.strategy.symbol, orders);
+                            if (dbPendingOrders.length == 1) {
+                                // only process if one order pending. If buy and sell are pending, we are going to create two
+                                // orders for the same gap
+                                let dbPendingOrder = dbPendingOrders[0];
+                                otherPreviousOrder = BaseExchangeCcxtOrder.fromJson(dbPendingOrder.order);
+                                result = await gridCreator.handleOrder(otherPreviousOrder, true);
+                            }
+                        }
+*/   
                         if (result.gridDirty) {
-                            gridCreator.setGridDirty(true, otherPreviousOrder);
-                            // send grid dirty
-                            console.log("OrderHandler: send grid dirty event:", strategyInstance.id);
-                            GridDirtyEventService.send(strategyInstance.id);
+                            // if grid dirty when try to process other order or current order is delayed or
+                            // dirty because another reason
+// and this                           if (otherPreviousOrder.id != dataOrder.id || delayed || (result.highestBuyOrder == null && result.lowestSellOrder == null)) {
+                                gridCreator.setGridDirty(true, otherPreviousOrder);
+                                // send grid dirty
+                                console.log("OrderHandler: send grid dirty event:", strategyInstance.id);
+                                GridDirtyEventService.send(strategyInstance.id);
+//                            }
                         } else {
                             if (result.gridUpdated) {
                                 console.log("OrderHandler: send order sender event after grid update:", strategyInstance.id);
