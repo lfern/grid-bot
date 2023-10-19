@@ -163,8 +163,8 @@ class DeribitSync extends BaseExchangeSync {
      */
     generateTradeFromExtenderLedgerEntry(entry) {
         let symbol = safeString(entry.info, 'instrument_name');
-        if (symbol in this.exchange.marketsById) {
-            const markets = this.exchange.marketsById[symbol];
+        if (symbol in this.exchange.markets_by_id) {
+            const markets = this.exchange.markets_by_id[symbol];
             if (markets.length > 0) { 
                 symbol = markets[0]['symbol'];
             }

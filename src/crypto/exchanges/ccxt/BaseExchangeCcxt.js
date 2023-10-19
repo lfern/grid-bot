@@ -391,8 +391,8 @@ class BaseExchangeCcxt extends BaseExchange {
     }
 
     /** @inheritdoc */
-    get marketsById() {
-        return this.ccxtExchange.marketsById;
+    get markets_by_id() {
+        return this.ccxtExchange.markets_by_id;
     }
     
     /**

@@ -439,7 +439,7 @@ class BaseExchange {
     /**
      * @returns {Object.<string, ccxt.Market>}}
      */
-    get marketsById() {
+    get markets_by_id() {
         throw new Error("NOT IMPLEMENTED");
     }
 
