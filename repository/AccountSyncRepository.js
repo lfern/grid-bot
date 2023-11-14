@@ -7,10 +7,11 @@ const { InstanceAccountRepository } = require('./InstanceAccountingRepository');
 
 class AccountSyncRepository {
     async getNextAccountToSync() {
+        const minutes = 5;
         const exchanges = await models.Account.findAll({
             attributes: ["exchange_id", models.Sequelize.literal("max(synced_at)")],
             group: "exchange_id",
-            having: models.Sequelize.literal("max(synced_at) is null or max(synced_at) < now() - (interval '1 minute')"),
+            having: models.Sequelize.literal(`max(synced_at) is null or max(synced_at) < now() - (interval '${minutes} minute')`),
             order: [
                 [models.Sequelize.literal("max(synced_at)"), 'ASC']
             ]
@@ -28,7 +29,7 @@ class AccountSyncRepository {
                         [models.Sequelize.Op.eq]: null,
                     }},
                     {synced_at: {
-                        [models.Sequelize.Op.lt] : models.Sequelize.literal("now() - (interval '1 minute')"),
+                        [models.Sequelize.Op.lt] : models.Sequelize.literal(`now() - (interval '${minutes} minute')`),
                     }}
                 ],
             },
